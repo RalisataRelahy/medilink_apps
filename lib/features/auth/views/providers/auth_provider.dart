@@ -3,7 +3,7 @@ import '../../../patients/data/models/patient_details_models.dart';
 import '../../data/models/user_model.dart';
 import '../../data/services/auth_service.dart';
 import '../../../../shared/enums/user_role.dart';
-import '../../../doctors/data/models/doctor_model.dart';
+import '../../../doctors/data/models/doctor_details_model.dart';
 import 'auth_state.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) {
@@ -73,10 +73,12 @@ class AuthNotifier extends Notifier<AuthState> {
         role: profile.role,
       );
     } catch (e) {
+      print("ERREUR d'inscription : $e");
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
       );
+      rethrow; // Permet à l'UI de capturer l'erreur dans son try-catch
     }
   }
 
@@ -85,7 +87,7 @@ class AuthNotifier extends Notifier<AuthState> {
     required String password,
     required UserRole role,
     PatientDetailsModel? patientData,
-    DoctorModel? doctorData,
+    DoctorDetailsModel? doctorData,
     String? email,
     required UserModel userRegister,
   }) async {
@@ -116,10 +118,12 @@ class AuthNotifier extends Notifier<AuthState> {
         role: role,
       );
     } catch (e) {
+      print("ERREUR d'inscription : $e");
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
       );
+      rethrow; // Permet à l'UI de capturer l'erreur dans son try-catch
     }
   }
 

@@ -13,7 +13,7 @@ class TableNames {
 
   // Doctors
   static const String doctors = 'doctors';
-  static const String specialities = 'specialities';
+  static const String specialities = 'specialties';
   static const String doctorSpecialites='doctor_specialties';
   static const String doctorLanguages='doctor_languages';
   static const String doctorDiplomas='doctor_diplomas';

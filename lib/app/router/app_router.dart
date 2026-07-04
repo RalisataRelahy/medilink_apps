@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:medilink/features/auth/data/models/user_model.dart';
+import 'package:medilink/features/doctors/views/screens/profil_doctor.dart';
+import 'package:medilink/features/doctors/views/screens/register_doctor.dart';
 import 'package:medilink/features/patients/views/screens/profil_patient.dart';
 import 'package:medilink/features/patients/views/screens/register_screen_patient.dart';
 import '../../features/auth/views/providers/auth_provider.dart';
@@ -16,6 +18,7 @@ class AppRoutes {
   static const registerPatient = '/registerPatient';
   static const home = '/home';
   static const dossierMedicale='/dossierMedicale';
+  static const doctorRegistration='/registerDoctor';
   static const dashboard = '/dashboard';
   static const patients = '/patients';
   static const patientDetails = '/patients/:id';
@@ -51,7 +54,10 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final location = state.matchedLocation;
       final user = authState.user;
-      final isAuthRoute = location == AppRoutes.login || location == AppRoutes.register||location==AppRoutes.registerPatient;
+      final isAuthRoute = location == AppRoutes.login || 
+          location == AppRoutes.register || 
+          location == AppRoutes.registerPatient || 
+          location == AppRoutes.doctorRegistration;
 
       // 1. Non connecté
       if (user == null) {
@@ -91,13 +97,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.registerPatient,
         builder: (context, state) {
-
           final data = state.extra as Map<String, dynamic>;
-
           final user = UserModel.fromJson(data['user'],);
           final password = data['password'] as String;
-
           return RegisterPage(
+            user: user,
+            password: password,
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.doctorRegistration,
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>;
+          final user = UserModel.fromJson(data['user'],);
+          final password = data['password'] as String;
+          print("approuter:$user");
+          return RegisterDoctorScreen(
             user: user,
             password: password,
           );
@@ -164,7 +180,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: AppRoutes.profile,
-            builder: (_, __) => const PatientProfileScreen(),
+            builder: (context, state) => Consumer(
+              builder: (context, ref, _) {
+                final role = ref.watch(authProvider).role;
+                if (role == UserRole.doctor) {
+                  return const DoctorProfileScreen();
+                }
+                return const PatientProfileScreen();
+              },
+            ),
           ),
         ],
       ),

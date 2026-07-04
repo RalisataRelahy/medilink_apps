@@ -6,7 +6,7 @@ class DoctorModel {
   final int yearsOfExperience;
   final String bio;
   final double rating;
-  final String clinicName;
+  final String? clinicName;
   final AccountStatus accountStatus;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -17,7 +17,7 @@ class DoctorModel {
     required this.yearsOfExperience,
     required this.bio,
     required this.rating,
-    required this.clinicName,
+    this.clinicName,
     required this.accountStatus,
     this.createdAt,
     this.updatedAt,

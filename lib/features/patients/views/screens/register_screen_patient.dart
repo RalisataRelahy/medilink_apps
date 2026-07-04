@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:medilink/features/auth/data/models/user_model.dart';
 import 'package:medilink/features/patients/data/models/allergy_model.dart';
@@ -176,6 +177,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
     if (!_validateCurrentStep()) return;
     final patientData = PatientModel(
       gender: _gender,
+      weight: double.tryParse(_weightCtrl.text.trim()),
+      height: double.tryParse(_heightCtrl.text.trim()),
+      bloodType: _bloodType,
       dateOfBirth: _dateOfBirth!,
       emergencyContactName: _emergencyNameCtrl.text.trim(),
       emergencyContactPhone: _emergencyPhoneCtrl.text.trim(),
@@ -221,7 +225,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => context.push('/login'),
             child: const Text('OK', style: TextStyle(color: MedilinkColors.primary)),
           ),
         ],

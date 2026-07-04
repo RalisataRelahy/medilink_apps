@@ -1,7 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:medilink/core/constants/db_constants.dart';
-import 'package:medilink/features/auth/data/models/user_model.dart';
+import 'package:medilink/features/doctors/data/models/doctor_details_model.dart';
 import 'package:medilink/features/doctors/data/models/doctor_model.dart';
+import 'package:medilink/features/doctors/data/models/speciality_model.dart';
+import 'package:medilink/features/doctors/data/models/language_model.dart';
+import 'package:medilink/features/doctors/data/models/diplomas_model.dart';
 import 'package:medilink/features/patients/data/models/allergy_model.dart';
 import 'package:medilink/features/patients/data/models/disease_model.dart';
 import 'package:medilink/features/patients/data/models/patient_model.dart';
@@ -9,6 +12,7 @@ import 'package:medilink/shared/enums/user_role.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../patients/data/models/patient_details_models.dart';
+import '../models/user_model.dart';
 
 class AuthService {
   final supabase = Supabase.instance.client;
@@ -22,7 +26,7 @@ class AuthService {
 
   Future<AuthResponse> register({
     PatientDetailsModel? patientData,
-    DoctorModel? doctorData,
+    DoctorDetailsModel? doctorData,
     required String password,
     required UserRole role,
     String? email, // Nécessaire si c'est un docteur car DoctorModel n'a pas d'email
@@ -58,8 +62,16 @@ class AuthService {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
-
-    await supabase.from(TableNames.profiles).insert(userModel.toJson());
+    final existing = await supabase
+        .from(TableNames.profiles)
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+    if (existing == null) {
+      await supabase.from(TableNames.profiles).insert(userModel.toJson());
+    } else {
+      await supabase.from(TableNames.profiles).update(userModel.toJson()).eq('id', userId);
+    }
     print("Registred succeffully");
     print(role);
     // 3. Données spécifiques au rôle
@@ -103,10 +115,25 @@ class AuthService {
         rethrow;
       }
     } else if (role == UserRole.doctor && doctorData != null) {
+      print("Doctor registration beguin from auth_servivces :$userId");
+      try{
       await supabase.from(TableNames.doctors).insert({
         'id': userId,
-        ...doctorData.toJson(),
-      });
+        ...doctorData.doctor.toJson(),
+      });}catch(e){
+        print("INSERT ERROR: $e");
+        rethrow;
+      }
+
+      if (doctorData.specialities.isNotEmpty) {
+        await registerDoctorSpecialities(userId, doctorData.specialities);
+      }
+      if (doctorData.languages.isNotEmpty) {
+        await registerDoctorLanguages(userId, doctorData.languages);
+      }
+      if (doctorData.diplomas.isNotEmpty) {
+        await registerDoctorDiplomas(userId, doctorData.diplomas);
+      }
       debugPrint("Registred succeffully 5");
     }
 
@@ -136,9 +163,15 @@ class AuthService {
       List<DiseaseModel> diseases,
       ) async {
     try {
+      final uniqueDiseases = {
+        for (var d in diseases) d.name.toLowerCase().trim(): d
+      }.values.toList();
+
+      if (uniqueDiseases.isEmpty) return;
+
       final liaisons = await Future.wait(
-        diseases.map((d) async {
-          final id = await getOrCreateDiseaseId(d.name);
+        uniqueDiseases.map((d) async {
+          final id = await getOrCreateDiseaseId(d.name.trim());
 
           return {
             'patient_id': userId,
@@ -147,30 +180,95 @@ class AuthService {
         }),
       );
 
-      await supabase.from(TableNames.patientDiseases).insert(liaisons);
-    } catch (e) {
-      print('Erreur registerPatientDiseases: $e');
+      await supabase
+          .from(TableNames.patientDiseases)
+          .upsert(liaisons);
+
+    } catch (e, stack) {
+      debugPrint("❌ registerPatientDiseases: $e");
+      debugPrintStack(stackTrace: stack);
       rethrow;
     }
   }
 
-  Future<void> registerPatientAllergies(String userId, List<AllergyModel> allergies) async {
+  Future<void> registerPatientAllergies(
+      String userId,
+      List<AllergyModel> allergies,
+      ) async {
     try {
-      final List<dynamic> res = await supabase
-          .from(TableNames.allergies)
-          .insert(allergies.map((a) => {'name': a.name}).toList())
-          .select();
+      final uniqueAllergies = {
+        for (var a in allergies) a.name.toLowerCase().trim(): a
+      }.values.toList();
 
-      final liaisons = res.map((all) => {
-        'patient_id': userId,
-        'allergy_id': all['id'],
+      if (uniqueAllergies.isEmpty) return;
+
+      final allergyIds = await Future.wait(
+        uniqueAllergies.map((a) async {
+          final name = a.name.trim();
+
+          final existing = await supabase
+              .from(TableNames.allergies)
+              .select('id')
+              .eq('name', name)
+              .maybeSingle();
+
+          if (existing != null) {
+            return existing['id'];
+          }
+
+          final inserted = await supabase
+              .from(TableNames.allergies)
+              .insert({'name': name})
+              .select('id')
+              .single();
+
+          return inserted['id'];
+        }),
+      );
+
+      final liaisons = allergyIds.map((id) {
+        return {
+          'patient_id': userId,
+          'allergy_id': id,
+        };
       }).toList();
 
-      await supabase.from(TableNames.patientAllergies).insert(liaisons);
-    } catch (e) {
-      print('Erreur registerPatientAllergies: $e');
+      await supabase
+          .from(TableNames.patientAllergies)
+          .upsert(liaisons);
+
+    } catch (e, stack) {
+      debugPrint("registerPatientAllergies: $e");
+      debugPrintStack(stackTrace: stack);
       rethrow;
     }
+  }
+
+  Future<void> registerDoctorSpecialities(String userId, List<SpecialityModel> specialities) async {
+    final liaisons = await Future.wait(specialities.map((s) async {
+      final existing = await supabase.from(TableNames.specialities).select('id').eq('name', s.name.trim()).maybeSingle();
+      final specialityId = existing != null ? existing['id'] : (await supabase.from(TableNames.specialities).insert({'name': s.name.trim()}).select('id').single())['id'];
+      return {'doctor_id': userId, 'specialty_id': specialityId};
+    }));
+    await supabase.from(TableNames.doctorSpecialites).upsert(liaisons);
+  }
+
+  Future<void> registerDoctorLanguages(String userId, List<LanguageModel> languages) async {
+    final liaisons = await Future.wait(languages.map((l) async {
+      final existing = await supabase.from(TableNames.languages).select('id').eq('name', l.name.trim()).maybeSingle();
+      final languageId = existing != null ? existing['id'] : (await supabase.from(TableNames.languages).insert({'name': l.name.trim()}).select('id').single())['id'];
+      return {'doctor_id': userId, 'language_id': languageId};
+    }));
+    await supabase.from(TableNames.doctorLanguages).upsert(liaisons);
+  }
+
+  Future<void> registerDoctorDiplomas(String userId, List<DiplomasModel> diplomas) async {
+    final liaisons = await Future.wait(diplomas.map((d) async {
+      final existing = await supabase.from(TableNames.diplomas).select('id').eq('name', d.name.trim()).maybeSingle();
+      final diplomaId = existing != null ? existing['id'] : (await supabase.from(TableNames.diplomas).insert({'name': d.name.trim()}).select('id').single())['id'];
+      return {'doctor_id': userId, 'diploma_id': diplomaId};
+    }));
+    await supabase.from(TableNames.doctorDiplomas).upsert(liaisons);
   }
 
   Future<void> logout() => supabase.auth.signOut();
@@ -188,6 +286,47 @@ class AuthService {
       return UserModel.fromJson(data);
     } catch (e) {
       print('Erreur getUserProfile: $e');
+      return null;
+    }
+  }
+
+  Future<DoctorDetailsModel?> getDoctorDetails(String userId) async {
+    try {
+      final data = await supabase
+          .from(TableNames.doctors)
+          .select('''
+            *,
+            profiles:profiles!doctors_id_fkey (*),
+            specialities:doctor_specialties!doctor_specialties_doctor_id_fkey (specialties (*)),
+            languages:doctor_languages!doctor_languages_doctor_id_fkey (languages (*)),
+            diplomas:doctor_diplomas!doctor_diplomas_doctor_id_fkey (diplomas (*))
+          ''')
+          .eq('id', userId)
+          .single();
+
+      final profile = data['profiles'];
+      final specialities = (data['specialities'] as List)
+          .map((s) => s['specialties'])
+          .where((s) => s != null)
+          .toList();
+      final languages = (data['languages'] as List)
+          .map((l) => l['languages'])
+          .where((l) => l != null)
+          .toList();
+      final diplomas = (data['diplomas'] as List)
+          .map((d) => d['diplomas'])
+          .where((d) => d != null)
+          .toList();
+
+      return DoctorDetailsModel(
+        profile: UserModel.fromJson(profile),
+        doctor: DoctorModel.fromJson(data),
+        specialities: specialities.map((e) => SpecialityModel.fromJson(e)).toList(),
+        languages: languages.map((e) => LanguageModel.fromJson(e)).toList(),
+        diplomas: diplomas.map((e) => DiplomasModel.fromJson(e)).toList(),
+      );
+    } catch (e) {
+      debugPrint('Erreur getDoctorDetails: $e');
       return null;
     }
   }

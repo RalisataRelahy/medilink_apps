@@ -88,10 +88,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
       address: _addressCtrl.text.trim(),
       role: _role,
     );
-    context.push('/registerPatient', extra: {
+    print(_role.name);
+    if(_role==UserRole.patient) {
+      context.push('/registerPatient', extra: {
       'user': newUser.toJson(),
       'password': _passCtrl.text.trim(),
     });
+    }else if(_role==UserRole.doctor){
+      print("doctor clicked!");
+      context.push('/registerDoctor', extra: {
+        'user': newUser.toJson(),
+        'password': _passCtrl.text.trim(),
+      });
+      print("Over!!!!!!!!!!!!!!!!!1");
+    }else{
+      print('error');
+    }
   }
 
   @override
