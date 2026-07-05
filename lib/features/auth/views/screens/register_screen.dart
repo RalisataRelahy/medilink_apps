@@ -3,19 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/enums/user_role.dart';
 import '../../data/models/user_model.dart';
-import '../providers/auth_provider.dart';
+import 'package:medilink/core/theme/app_colors.dart';
+import 'package:medilink/features/auth/views/providers/auth_provider.dart';
 
 // ── MediLink Design Tokens ──────────────────────────────────────────────────
-const _navy      = Color(0xFF0F172A);
-const _blue      = Color(0xFF2563EB);
-const _mint      = Color(0xFF10B981);  // vitality accent
-const _surface   = Color(0xFFFFFFFF);
-const _bgSlate   = Color(0xFFF1F5F9);
-const _slate400  = Color(0xFF94A3B8);
-const _slate600  = Color(0xFF475569);
-const _slate200  = Color(0xFFE2E8F0);
-const _errorRed  = Color(0xFFEF4444);
-const _warningAmber = Color(0xFFF59E0B);
+const _navy      = AppColors.textDark;
+const _blue      = AppColors.primary;
+const _mint      = AppColors.success;
+const _surface   = AppColors.surface;
+const _bgSlate   = AppColors.background;
+const _slate400  = AppColors.textLight;
+const _slate600  = AppColors.textGrey;
+const _slate200  = AppColors.inactiveStep;
+const _errorRed  = AppColors.error;
+const _warningAmber = AppColors.warning;
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -421,7 +422,7 @@ class _WideLayout extends StatelessWidget {
           child: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF1E3A8A), Color(0xFF1D4ED8), Color(0xFF0EA5E9)],
+                colors: [AppColors.headerBlueDark, Color(0xFF2B7DE9), AppColors.headerBlueLight],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -439,10 +440,10 @@ class _WideLayout extends StatelessWidget {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                                color: Colors.white.withOpacity(0.3), width: 1),
+                                color: Colors.white.withValues(alpha: 0.3), width: 1),
                           ),
                           child: const Icon(Icons.local_hospital_rounded,
                               color: Colors.white, size: 22),
@@ -475,7 +476,7 @@ class _WideLayout extends StatelessWidget {
                     Text(
                       'Rejoignez des milliers de patients et médecins qui font confiance à MediLink pour simplifier leurs soins.',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.80),
+                        color: Colors.white.withValues(alpha: 0.80),
                         fontSize: 15,
                         height: 1.55,
                       ),
@@ -494,7 +495,7 @@ class _WideLayout extends StatelessWidget {
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: _mint.withOpacity(0.20),
+                              color: _mint.withValues(alpha: 0.20),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(e.$1,
@@ -504,7 +505,7 @@ class _WideLayout extends StatelessWidget {
                           Text(
                             e.$2,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.88),
+                              color: Colors.white.withValues(alpha: 0.88),
                               fontSize: 14,
                             ),
                           ),
@@ -515,7 +516,7 @@ class _WideLayout extends StatelessWidget {
                     Text(
                       '© 2025 MediLink Madagascar',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.40),
+                        color: Colors.white.withValues(alpha: 0.40),
                         fontSize: 12,
                       ),
                     ),
@@ -628,7 +629,7 @@ class _NarrowLayout extends StatelessWidget {
               height: 160,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF1E3A8A), Color(0xFF2563EB), Color(0xFF38BDF8)],
+                  colors: [AppColors.headerBlueDark, Color(0xFF2B7DE9), AppColors.headerBlueLight],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -644,10 +645,10 @@ class _NarrowLayout extends StatelessWidget {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                            color: Colors.white.withOpacity(0.3), width: 1.5),
+                            color: Colors.white.withValues(alpha: 0.3), width: 1.5),
                       ),
                       child: const Icon(Icons.local_hospital_rounded,
                           color: Colors.white, size: 26),
@@ -666,7 +667,7 @@ class _NarrowLayout extends StatelessWidget {
                     Text(
                       'Votre santé, nos priorités.',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.75),
+                        color: Colors.white.withValues(alpha: 0.75),
                         fontSize: 13,
                       ),
                     ),
@@ -757,7 +758,7 @@ class _RoleChip extends StatelessWidget {
           boxShadow: selected
               ? [
             BoxShadow(
-              color: _blue.withOpacity(0.12),
+              color: _blue.withValues(alpha: 0.12),
               blurRadius: 8,
               offset: const Offset(0, 2),
             )
@@ -774,8 +775,8 @@ class _RoleChip extends StatelessWidget {
                   height: 32,
                   decoration: BoxDecoration(
                     color: selected
-                        ? _blue.withOpacity(0.12)
-                        : _slate200.withOpacity(0.6),
+                        ? _blue.withValues(alpha: 0.12)
+                        : _slate200.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(icon,

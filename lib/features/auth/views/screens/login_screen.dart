@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:medilink/core/theme/app_colors.dart';
 import '../../../../app/router/app_router.dart';
 import '../providers/auth_provider.dart';
+
+// NEW: simple RFC-lite email pattern — enough to reject obviously malformed
+// input client-side (no request wasted) without being overly strict about
+// exotic-but-valid addresses.
+final RegExp _emailPattern = RegExp(r'^[\w\.\-\+]+@[\w\-]+\.[a-zA-Z]{2,}$');
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -17,17 +23,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _rememberMe = true;
   bool _obscurePassword = true;
 
+  // NEW: dedicated form key so email/password get real field-level
+  // validation instead of a single generic "fill everything" snackbar.
+  final _formKey = GlobalKey<FormState>();
+
   // MediLink brand colors
-  static const Color primaryBlue = Color(0xFF2B7DE9);
-  static const Color headerBlueDark = Color(0xFF1A5DC8);
-  static const Color headerBlueLight = Color(0xFF4CA3F5);
-  static const Color linkBlue = Color(0xFF2B7DE9);
-  static const Color cardBg = Color(0xFFFFFFFF);
-  static const Color bgGray = Color(0xFFF0F4FA);
-  static const Color textDark = Color(0xFF1A1A2E);
-  static const Color textGray = Color(0xFF6B7280);
-  static const Color borderColor = Color(0xFFD1D5DB);
-  static const Color checkboxBlue = Color(0xFF2B7DE9);
+  static const Color primaryBlue = AppColors.headerBlueDark;
+  static const Color headerBlueDark = AppColors.headerBlueDark;
+  static const Color headerBlueLight = AppColors.headerBlueLight;
+  static const Color linkBlue = AppColors.headerBlueDark;
+  static const Color cardBg = AppColors.surface;
+  static const Color bgGray = AppColors.background;
+  static const Color textDark = AppColors.textDark;
+  static const Color textGray = AppColors.textGrey;
+  static const Color borderColor = AppColors.inactiveStep;
+  static const Color checkboxBlue = AppColors.headerBlueDark;
 
   @override
   void dispose() {
@@ -36,18 +46,76 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  // NEW: maps whatever the backend/auth SDK throws (Firebase-style error
+  // codes, generic exceptions, etc.) into a short, safe French message.
+  // Deliberately generic for wrong-password/user-not-found so the app
+  // never reveals whether a given email is registered (avoids account
+  // enumeration) while still being specific about a malformed email or a
+  // connectivity problem.
+  String _friendlyAuthError(Object error) {
+    final msg = error.toString().toLowerCase();
+
+    if (msg.contains('invalid-email')) {
+      return 'Adresse email invalide.';
+    }
+    if (msg.contains('wrong-password') ||
+        msg.contains('user-not-found') ||
+        msg.contains('invalid-credential') ||
+        msg.contains('invalid credential')) {
+      return 'Email ou mot de passe incorrect.';
+    }
+    if (msg.contains('user-disabled')) {
+      return 'Ce compte a été désactivé. Contactez le support.';
+    }
+    if (msg.contains('too-many-requests')) {
+      return 'Trop de tentatives. Veuillez réessayer plus tard.';
+    }
+    if (msg.contains('network') || msg.contains('socket') || msg.contains('timeout')) {
+      return 'Impossible de contacter le serveur. Vérifiez votre connexion internet.';
+    }
+    return 'Une erreur est survenue. Veuillez réessayer.';
+  }
+
+  // NEW: client-side email format validator — rejects malformed emails
+  // before any network call is made.
+  String? _validateEmail(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) return 'Veuillez saisir votre email';
+    if (!_emailPattern.hasMatch(trimmed)) return 'Adresse email invalide';
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) return 'Veuillez saisir votre mot de passe';
+    return null;
+  }
+
   Future<void> _handleLogin() async {
+    FocusScope.of(context).unfocus();
+
+    // NEW: validate locally first — if the email is malformed or a field
+    // is empty, stop here and never touch the network.
+    final isValid = _formKey.currentState?.validate() ?? false;
+    if (!isValid) return;
+
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez remplir tous les champs')),
-      );
-      return;
+    try {
+      await ref.read(authProvider.notifier).signIn(email, password);
+    } catch (error) {
+      // NEW: catch anything the notifier itself doesn't already turn into
+      // authState.error, so the user never sees a silent failure.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(_friendlyAuthError(error)),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
     }
-
-    await ref.read(authProvider.notifier).signIn(email, password);
   }
 
   @override
@@ -84,7 +152,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Card(
                 color: cardBg,
                 elevation: 8,
-                shadowColor: Colors.black.withOpacity(0.12),
+                shadowColor: Colors.black.withValues(alpha: 0.12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(isNarrow ? 16 : 20),
                 ),
@@ -103,81 +171,110 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         cardHorizontalPadding,
                         cardBottomPadding,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Title
-                          Center(
-                            child: Text(
-                              'Se connecter',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: titleFontSize,
-                                fontWeight: FontWeight.w700,
-                                color: primaryBlue,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Center(
-                            child: Text(
-                              'Accédez à votre espace personnel',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: isNarrow ? 12.5 : 14,
-                                color: textGray,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: isNarrow ? 22 : 28),
-
-                          // Email field
-                          _buildLabel('Email', isNarrow: isNarrow),
-                          const SizedBox(height: 6),
-                          _buildTextField(
-                            controller: _emailController,
-                            hint: 'exemple@medilink.mg',
-                            keyboardType: TextInputType.emailAddress,
-                            fontSize: fieldFontSize,
-                            verticalPadding: fieldVerticalPadding,
-                          ),
-                          SizedBox(height: isNarrow ? 14 : 18),
-
-                          // Password field
-                          _buildLabel('Mot de passe', isNarrow: isNarrow),
-                          const SizedBox(height: 6),
-                          _buildPasswordField(
-                            fontSize: fieldFontSize,
-                            verticalPadding: fieldVerticalPadding,
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Remember me + Forgot password
-                          _buildRememberRow(isNarrow: isNarrow),
-                          SizedBox(height: isNarrow ? 22 : 28),
-
-                          // Login button or loader
-                          if (authState.isLoading)
-                            const Center(child: CircularProgressIndicator())
-                          else
-                            _buildLoginButton(isNarrow: isNarrow),
-
-                          if (authState.error != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 16),
+                      // NEW: Form wraps the fields so validators run
+                      // together on submit and show inline errors.
+                      child: Form(
+                        key: _formKey,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Title
+                            Center(
                               child: Text(
-                                'Erreur: ${authState.error}',
-                                style: const TextStyle(
-                                    color: Colors.red, fontSize: 13),
+                                'Se connecter',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: titleFontSize,
+                                  fontWeight: FontWeight.w700,
+                                  color: primaryBlue,
+                                  letterSpacing: 0.2,
+                                ),
                               ),
                             ),
+                            const SizedBox(height: 6),
+                            Center(
+                              child: Text(
+                                'Accédez à votre espace personnel',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: isNarrow ? 12.5 : 14,
+                                  color: textGray,
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: isNarrow ? 22 : 28),
 
-                          SizedBox(height: isNarrow ? 16 : 20),
+                            // Email field
+                            _buildLabel('Email', isNarrow: isNarrow),
+                            const SizedBox(height: 6),
+                            _buildTextField(
+                              controller: _emailController,
+                              hint: 'exemple@medilink.mg',
+                              keyboardType: TextInputType.emailAddress,
+                              fontSize: fieldFontSize,
+                              verticalPadding: fieldVerticalPadding,
+                              validator: _validateEmail, // NEW
+                            ),
+                            SizedBox(height: isNarrow ? 14 : 18),
 
-                          // Sign up link
-                          _buildSignupRow(isNarrow: isNarrow),
-                        ],
+                            // Password field
+                            _buildLabel('Mot de passe', isNarrow: isNarrow),
+                            const SizedBox(height: 6),
+                            _buildPasswordField(
+                              fontSize: fieldFontSize,
+                              verticalPadding: fieldVerticalPadding,
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Remember me + Forgot password
+                            _buildRememberRow(isNarrow: isNarrow),
+                            SizedBox(height: isNarrow ? 22 : 28),
+
+                            // Login button or loader
+                            if (authState.isLoading)
+                              const Center(child: CircularProgressIndicator())
+                            else
+                              _buildLoginButton(isNarrow: isNarrow),
+
+                            // NEW: friendlier error card instead of raw
+                            // "Erreur: <exception>" text.
+                            if (authState.error != null && !authState.isLoading)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.error_outline_rounded,
+                                          size: 18, color: AppColors.error),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _friendlyAuthError(authState.error!),
+                                          style: const TextStyle(
+                                            color: AppColors.error, fontSize: 13, height: 1.3,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                            SizedBox(height: isNarrow ? 16 : 20),
+
+                            // Sign up link
+                            _buildSignupRow(isNarrow: isNarrow),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -194,11 +291,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // Sur très petit écran : logos plus petits + Flexible/FittedBox pour
   // empêcher tout overflow horizontal du Row.
   Widget _buildHeader({required bool isNarrow}) {
-    final logoSize = isNarrow ? 40.0 : 52.0;
-    final iconSize = isNarrow ? 22.0 : 28.0;
-    final nlFontSize = isNarrow ? 15.0 : 18.0;
-    final nlPaddingH = isNarrow ? 9.0 : 12.0;
-    final nlPaddingV = isNarrow ? 4.0 : 6.0;
+    final logoSize = isNarrow ? 60.0 : 72.0;
+    final nlPaddingH = isNarrow ? 7.0 : 9.0;
+    final nlPaddingV = isNarrow ? 2.0 : 4.0;
 
     return Container(
       width: double.infinity,
@@ -224,20 +319,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Flexible(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
-                  child: Container(
+                  child: SizedBox(
                     width: logoSize,
                     height: logoSize,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.4),
-                        width: 1.5,
-                      ),
-                    ),
                     child: Center(
-                      child: Icon(Icons.public,
-                          color: Colors.white, size: iconSize),
+                      child: Image.asset('assets/images/logoIspm.png'),
                     ),
                   ),
                 ),
@@ -248,13 +334,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Text(
                   '×',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                     fontSize: isNarrow ? 18 : 22,
                     fontWeight: FontWeight.w300,
                   ),
                 ),
               ),
-              // NL logo placeholder
+              //logo placeholder
               Flexible(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
@@ -263,23 +349,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       horizontal: nlPaddingH,
                       vertical: nlPaddingV,
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.4),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Text(
-                      'NL',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: nlFontSize,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                      ),
-                    ),
+                    child: Image.asset('assets/images/logo.png'),
                   ),
                 ),
               ),
@@ -312,21 +382,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
+  // NEW: now a TextFormField with a validator, wired through the Form above.
   Widget _buildTextField({
     required TextEditingController controller,
     required String hint,
     TextInputType keyboardType = TextInputType.text,
     required double fontSize,
     required double verticalPadding,
+    String? Function(String?)? validator,
   }) {
-    return TextField(
+    return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      validator: validator,
       style: TextStyle(fontSize: fontSize, color: textDark),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(
-            color: textGray.withOpacity(0.7), fontSize: fontSize),
+            color: textGray.withValues(alpha: 0.7), fontSize: fontSize),
         contentPadding: EdgeInsets.symmetric(
             horizontal: 14, vertical: verticalPadding),
         filled: true,
@@ -339,6 +412,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: primaryBlue, width: 1.8),
         ),
+        errorBorder: OutlineInputBorder( // NEW
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.4),
+        ),
+        focusedErrorBorder: OutlineInputBorder( // NEW
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.8),
+        ),
+        errorStyle: const TextStyle(fontSize: 11.5), // NEW: keeps error text compact
       ),
     );
   }
@@ -347,14 +429,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     required double fontSize,
     required double verticalPadding,
   }) {
-    return TextField(
+    return TextFormField(
       controller: _passwordController,
       obscureText: _obscurePassword,
+      validator: _validatePassword, // NEW
       style: TextStyle(fontSize: fontSize, color: textDark),
       decoration: InputDecoration(
         hintText: '••••••••',
         hintStyle: TextStyle(
-            color: textGray.withOpacity(0.7), fontSize: fontSize),
+            color: textGray.withValues(alpha: 0.7), fontSize: fontSize),
         contentPadding: EdgeInsets.symmetric(
             horizontal: 14, vertical: verticalPadding),
         filled: true,
@@ -367,6 +450,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: primaryBlue, width: 1.8),
         ),
+        errorBorder: OutlineInputBorder( // NEW
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.4),
+        ),
+        focusedErrorBorder: OutlineInputBorder( // NEW
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.8),
+        ),
+        errorStyle: const TextStyle(fontSize: 11.5), // NEW
         suffixIcon: IconButton(
           icon: Icon(
             _obscurePassword
@@ -449,7 +541,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           backgroundColor: primaryBlue,
           foregroundColor: Colors.white,
           elevation: 2,
-          shadowColor: primaryBlue.withOpacity(0.4),
+          shadowColor: primaryBlue.withValues(alpha: 0.4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),

@@ -6,6 +6,7 @@
 //   -- 'annule'    : rendez-vous annulé
 
 import 'package:flutter/foundation.dart';
+import 'package:medilink/features/auth/data/models/user_model.dart';
 import 'package:medilink/shared/enums/status.dart';
 
 @immutable
@@ -19,6 +20,7 @@ class AppointmentModel {
   final String idDoctor;
   final Status status;
   final DateTime createdAt;
+  final UserModel? profile; // Joined profile info (Patient info for doctor, Doctor info for patient)
 
   const AppointmentModel({
     this.id,
@@ -30,6 +32,7 @@ class AppointmentModel {
     required this.idDoctor,
     required this.status,
     required this.createdAt,
+    this.profile,
   });
 
   // Convertit le JSON brut reçu de Supabase en un objet typé et sécurisé
@@ -37,18 +40,17 @@ class AppointmentModel {
     return AppointmentModel(
       id: (json['id'] ?? json['uid']) as String?,
       heure: (json['heure'] ?? '') as String,
-      // Supabase renvoie les dates en chaînes de caractères, on les transforme en DateTime
       date: DateTime.parse(json['date'] as String),
       localization: (json['localization'] ?? '') as String,
       idPatient: (json['id_patient'] ?? '') as String,
       idConsultation: json['id_consultation'] as String?,
       idDoctor: (json['id_doctor'] ?? '') as String,
-      // Transformation du texte de la BDD vers notre Enum sécurisé
       status: Status.values.firstWhere(
         (e) => e.name == json['status'],
         orElse: () => Status.pending,
       ),
       createdAt: DateTime.parse(json['created_at'] as String),
+      profile: json['profiles'] != null ? UserModel.fromJson(json['profiles'] as Map<String, dynamic>) : null,
     );
   }
 

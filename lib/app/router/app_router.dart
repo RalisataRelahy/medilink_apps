@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:medilink/features/auth/data/models/user_model.dart';
+import 'package:medilink/features/consultations/views/screens/consultations_screen.dart';
+import 'package:medilink/features/doctors/views/screens/doctor_dashboard.dart';
 import 'package:medilink/features/doctors/views/screens/profil_doctor.dart';
 import 'package:medilink/features/doctors/views/screens/register_doctor.dart';
+import 'package:medilink/features/patients/views/screens/patient_dashboard.dart';
 import 'package:medilink/features/patients/views/screens/profil_patient.dart';
 import 'package:medilink/features/patients/views/screens/register_screen_patient.dart';
+import '../../features/appointments/views/screens/appointments_screen.dart';
 import '../../features/auth/views/providers/auth_provider.dart';
 import '../../shared/enums/user_role.dart';
 import '../../shared/layout/main_layout.dart';
@@ -34,7 +38,7 @@ class AppRoutes {
 // ✅ Un ValueNotifier pour dire au routeur quand se recharger
 class RouterRefreshNotifier extends ChangeNotifier {
   RouterRefreshNotifier(Ref ref) {
-    ref.listen(authProvider, (_, __) => notifyListeners());
+    ref.listen(authProvider, (_, _) => notifyListeners());
   }
 }
 
@@ -88,11 +92,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: AppRoutes.login,
-        builder: (_, __) => const LoginScreen(),
+        builder: (_, _) => const LoginScreen(),
       ),
       GoRoute(
         path: AppRoutes.register,
-        builder: (_, __) => const RegisterScreen(),
+        builder: (_, _) => const RegisterScreen(),
       ),
       GoRoute(
         path: AppRoutes.registerPatient,
@@ -100,7 +104,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           final data = state.extra as Map<String, dynamic>;
           final user = UserModel.fromJson(data['user'],);
           final password = data['password'] as String;
-          return RegisterPage(
+          return RegisterPagePatient(
             user: user,
             password: password,
           );
@@ -124,15 +128,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: AppRoutes.home,
-            builder: (_, __) => const HomeScreen(),
+            builder: (_, _) => const PatientDashboardScreen(),
           ),
           GoRoute(
             path: AppRoutes.dashboard,
-            builder: (_, __) => const DoctorDashboard(),
+            builder: (_, __) => const DoctorDashboardScreen(),
           ),
           GoRoute(
             path: AppRoutes.patients,
-            builder: (_, __) => const PatientsScreen(),
+            builder: (_, _) => const PatientsScreen(),
           ),
           GoRoute(
             path: AppRoutes.patientDetails,
@@ -140,10 +144,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               final id = state.pathParameters['id']!;
               return PatientDetailsScreen(patientId: id);
             },
-          ),
-          GoRoute(
-            path: AppRoutes.doctors,
-            builder: (_, __) => const DoctorsScreen(),
           ),
           GoRoute(
             path: AppRoutes.doctorDetails,
@@ -154,11 +154,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: AppRoutes.appointments,
-            builder: (_, __) => const AppointmentsScreen(),
+            builder: (_, _) => const AppointmentsScreen(),
           ),
           GoRoute(
             path: AppRoutes.dossierMedicale,
-            builder: (_, __) => const DossierScreen(),
+            builder: (_, _) => const ConsultationsScreen(),
           ),
           GoRoute(
             path: AppRoutes.appointmentDetails,
@@ -197,14 +197,8 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 // Placeholders (à déplacer dans des fichiers séparés plus tard)
-class HomeScreen extends StatelessWidget { const HomeScreen({super.key}); @override Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Home'))); }
 class PatientsScreen extends StatelessWidget { const PatientsScreen({super.key}); @override Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Patients'))); }
 class PatientDetailsScreen extends StatelessWidget { final String patientId; const PatientDetailsScreen({super.key, required this.patientId}); @override Widget build(BuildContext context) => Scaffold(body: Center(child: Text('Patient $patientId'))); }
-class DoctorsScreen extends StatelessWidget { const DoctorsScreen({super.key}); @override Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Doctors'))); }
 class DoctorDetailsScreen extends StatelessWidget { final String doctorId; const DoctorDetailsScreen({super.key, required this.doctorId}); @override Widget build(BuildContext context) => Scaffold(body: Center(child: Text('Doctor $doctorId'))); }
-class AppointmentsScreen extends StatelessWidget { const AppointmentsScreen({super.key}); @override Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Appointments'))); }
 class AppointmentDetailsScreen extends StatelessWidget { final String appointmentId; const AppointmentDetailsScreen({super.key, required this.appointmentId}); @override Widget build(BuildContext context) => Scaffold(body: Center(child: Text('Appointment $appointmentId'))); }
-class ConsultationsScreen extends StatelessWidget { const ConsultationsScreen({super.key}); @override Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Consultations'))); }
 class ConsultationDetailsScreen extends StatelessWidget { final String consultationId; const ConsultationDetailsScreen({super.key, required this.consultationId}); @override Widget build(BuildContext context) => Scaffold(body: Center(child: Text('Consultation $consultationId'))); }
-class DoctorDashboard extends StatelessWidget { const DoctorDashboard({super.key}); @override Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Doctor Dashboard'))); }
-class DossierScreen extends StatelessWidget {const DossierScreen({super.key});@override Widget build(BuildContext context) {    return Center(child: Text("Dossier"),);  }}

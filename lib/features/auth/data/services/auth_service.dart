@@ -7,7 +7,6 @@ import 'package:medilink/features/doctors/data/models/language_model.dart';
 import 'package:medilink/features/doctors/data/models/diplomas_model.dart';
 import 'package:medilink/features/patients/data/models/allergy_model.dart';
 import 'package:medilink/features/patients/data/models/disease_model.dart';
-import 'package:medilink/features/patients/data/models/patient_model.dart';
 import 'package:medilink/shared/enums/user_role.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 

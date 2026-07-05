@@ -8,7 +8,7 @@ class NavConfig {
 
   static const doctorTabs = [
     '/dashboard',
-    '/patients',
+    '/appointments',
     '/consultations',
     '/profile',
   ];

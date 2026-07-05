@@ -35,7 +35,7 @@ class _FormulaireState extends ConsumerState<PrescriptionFormScreen> {
             // 2. On gère l'affichage selon l'état de la requête réseau
             medicinesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, __) => Text('Erreur de chargement : $err'),
+              error: (err, _) => Text('Erreur de chargement : $err'),
               data: (medicines) {
                 if (medicines.isEmpty) {
                   return const Text('Aucun médicament disponible en base.');

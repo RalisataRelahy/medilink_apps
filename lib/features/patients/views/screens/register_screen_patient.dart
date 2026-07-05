@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:medilink/core/theme/app_colors.dart';
 import 'package:medilink/features/auth/data/models/user_model.dart';
 import 'package:medilink/features/patients/data/models/allergy_model.dart';
 import 'package:medilink/features/patients/data/models/disease_model.dart';
@@ -31,17 +32,17 @@ extension BloodTypeLabel on BloodType {
 // ─── Design tokens ───────────────────────────────────────────────────────────
 
 class MedilinkColors {
-  static const primary      = Color(0xFF0A6E8A);
-  static const primaryLight = Color(0xFF1A9BBF);
-  static const accent       = Color(0xFF00C9A7);
-  static const surface      = Color(0xFFF0F7FA);
-  static const card         = Color(0xFFFFFFFF);
-  static const textMain     = Color(0xFF0D1B2A);
-  static const textSub      = Color(0xFF5A7184);
-  static const error        = Color(0xFFD62828);
-  static const stepDone     = Color(0xFF00C9A7);
-  static const stepActive   = Color(0xFF0A6E8A);
-  static const stepIdle     = Color(0xFFCCDDE5);
+  static const primary      = AppColors.primary;
+  static const primaryLight = AppColors.primaryLight;
+  static const accent       = AppColors.accent;
+  static const surface      = AppColors.background;
+  static const card         = AppColors.surface;
+  static const textMain     = AppColors.textDark;
+  static const textSub      = AppColors.textGrey;
+  static const error        = AppColors.error;
+  static const stepDone     = AppColors.stepDone;
+  static const stepActive   = AppColors.primary;
+  static const stepIdle     = AppColors.inactiveStep;
 
   // Tag colours
   static const diseaseTag   = Color(0xFF1A6FD6); // blue — chronic, manageable
@@ -65,16 +66,16 @@ const _allergySuggestions = [
 
 // ─── Page principale ─────────────────────────────────────────────────────────
 
-class RegisterPage extends ConsumerStatefulWidget {
+class RegisterPagePatient extends ConsumerStatefulWidget {
   final UserModel user;
   final String password;
-  const RegisterPage({super.key, required this.user, required this.password});
+  const RegisterPagePatient({super.key, required this.user, required this.password});
 
   @override
-  ConsumerState<RegisterPage> createState() => _RegisterPageState();
+  ConsumerState<RegisterPagePatient> createState() => _RegisterPageState();
 }
 
-class _RegisterPageState extends ConsumerState<RegisterPage>
+class _RegisterPageState extends ConsumerState<RegisterPagePatient>
     with TickerProviderStateMixin {
   int _currentStep = 0;
   final int _totalSteps = 4;
@@ -106,6 +107,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
   final _step2Key = GlobalKey<FormState>();
   final _step3Key = GlobalKey<FormState>();
   final _step4Key = GlobalKey<FormState>();
+
+  // ── NEW: submission / error state ─────────────────────────────────────────
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -140,6 +144,18 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
     }
   }
 
+  // ── NEW: whether the user has entered anything worth not losing ───────────
+  bool get _hasEnteredData {
+    return _dateOfBirth != null ||
+        _bloodType != null ||
+        _heightCtrl.text.trim().isNotEmpty ||
+        _weightCtrl.text.trim().isNotEmpty ||
+        _diseases.isNotEmpty ||
+        _allergies.isNotEmpty ||
+        _emergencyNameCtrl.text.trim().isNotEmpty ||
+        _emergencyPhoneCtrl.text.trim().isNotEmpty;
+  }
+
   bool _validateCurrentStep() {
     if (!(_currentFormKey.currentState?.validate() ?? false)) return false;
     if (_currentStep == 1 && _dateOfBirth == null) {
@@ -150,12 +166,18 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
   }
 
   void _nextStep() {
+    if (_isSubmitting) return;
     if (!_validateCurrentStep()) return;
+    FocusScope.of(context).unfocus();
     if (_currentStep < _totalSteps - 1) _animateToStep(_currentStep + 1);
   }
 
   void _prevStep() {
-    if (_currentStep > 0) _animateToStep(_currentStep - 1);
+    if (_isSubmitting) return;
+    if (_currentStep > 0) {
+      FocusScope.of(context).unfocus();
+      _animateToStep(_currentStep - 1);
+    }
   }
 
   void _animateToStep(int step) {
@@ -165,102 +187,213 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: MedilinkColors.error,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Row(children: [
+          const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+          const SizedBox(width: 10),
+          Expanded(child: Text(msg)),
+        ]),
+        backgroundColor: MedilinkColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
   }
 
-  Future<void> _submit() async {
-    if (!_validateCurrentStep()) return;
-    final patientData = PatientModel(
-      gender: _gender,
-      weight: double.tryParse(_weightCtrl.text.trim()),
-      height: double.tryParse(_heightCtrl.text.trim()),
-      bloodType: _bloodType,
-      dateOfBirth: _dateOfBirth!,
-      emergencyContactName: _emergencyNameCtrl.text.trim(),
-      emergencyContactPhone: _emergencyPhoneCtrl.text.trim(),
-      accountStatus: AccountStatus.pending,
-      updatedAt: DateTime.now(),
-    );
-    final allergyModel = _allergies
-        .map((e) => AllergyModel(
-       name: e,
-    ))
-        .toList();
+  // ── NEW: dedicated error dialog for submission failures ────────────────────
+  Future<void> _showSubmitErrorDialog(Object error) async {
+    if (!mounted) return;
 
-    final diseases = _diseases
-        .map((e) => DiseaseModel(
-      name: e,
-    ))
-        .toList();
+    // Try to give a slightly more useful message without leaking raw
+    // exception internals to the user.
+    String message = 'Une erreur est survenue lors de la création de votre '
+        'compte. Veuillez vérifier votre connexion internet et réessayer.';
+    final errString = error.toString().toLowerCase();
+    if (errString.contains('email') &&
+        (errString.contains('exist') || errString.contains('use') || errString.contains('utilis'))) {
+      message = 'Cette adresse e-mail est déjà utilisée par un autre compte.';
+    } else if (errString.contains('network') ||
+        errString.contains('socket') ||
+        errString.contains('timeout')) {
+      message = 'Impossible de contacter le serveur. Vérifiez votre connexion '
+          'internet et réessayez.';
+    }
 
-    final patientDataComplete = PatientDetailsModel(
-      profile: widget.user,
-      patient: patientData,
-      allergies: allergyModel,
-      diseases: diseases,
-    );
-    await ref.read(authProvider.notifier).register(
-      email: widget.user.email,
-      password: widget.password,
-      role: widget.user.role,
-      userRegister: widget.user,
-      patientData: patientDataComplete,
-    );
-    showDialog(
+    await showDialog(
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(children: [
-          Icon(Icons.check_circle_rounded, color: MedilinkColors.accent),
+          Icon(Icons.error_outline_rounded, color: MedilinkColors.error),
           SizedBox(width: 10),
-          Text('Inscription réussie'),
+          Text('Échec de l\'inscription'),
         ]),
-        content: const Text(
-          'Votre dossier médical a été créé.\nVous recevrez un email de confirmation.',
-        ),
+        content: Text(message, style: const TextStyle(height: 1.4)),
         actions: [
           TextButton(
-            onPressed: () => context.push('/login'),
-            child: const Text('OK', style: TextStyle(color: MedilinkColors.primary)),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Fermer',
+                style: TextStyle(color: MedilinkColors.textSub)),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _submit();
+            },
+            style: FilledButton.styleFrom(backgroundColor: MedilinkColors.primary),
+            child: const Text('Réessayer'),
           ),
         ],
       ),
     );
   }
 
+  // ── NEW: confirm before leaving the page if data was entered ───────────────
+  Future<bool> _confirmDiscard() async {
+    if (!_hasEnteredData || _isSubmitting) return true;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Abandonner l\'inscription ?'),
+        content: const Text(
+          'Les informations que vous avez saisies seront perdues. '
+              'Voulez-vous vraiment quitter ?',
+          style: TextStyle(height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Continuer l\'inscription'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Quitter', style: TextStyle(color: MedilinkColors.error)),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  Future<void> _submit() async {
+    if (_isSubmitting) return; // NEW: prevent double submission
+    if (!_validateCurrentStep()) return;
+
+    FocusScope.of(context).unfocus();
+    setState(() => _isSubmitting = true);
+
+    try {
+      final patientData = PatientModel(
+        gender: _gender,
+        weight: double.tryParse(_weightCtrl.text.trim()),
+        height: double.tryParse(_heightCtrl.text.trim()),
+        bloodType: _bloodType,
+        dateOfBirth: _dateOfBirth!,
+        emergencyContactName: _emergencyNameCtrl.text.trim(),
+        emergencyContactPhone: _emergencyPhoneCtrl.text.trim(),
+        accountStatus: AccountStatus.pending,
+        updatedAt: DateTime.now(),
+      );
+      final allergyModel = _allergies
+          .map((e) => AllergyModel(name: e))
+          .toList();
+
+      final diseases = _diseases
+          .map((e) => DiseaseModel(name: e))
+          .toList();
+
+      final patientDataComplete = PatientDetailsModel(
+        profile: widget.user,
+        patient: patientData,
+        allergies: allergyModel,
+        diseases: diseases,
+      );
+
+      await ref.read(authProvider.notifier).register(
+        email: widget.user.email,
+        password: widget.password,
+        role: widget.user.role,
+        userRegister: widget.user,
+        patientData: patientDataComplete,
+      );
+
+      if (!mounted) return; // NEW: guard after await
+
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(children: [
+            Icon(Icons.check_circle_rounded, color: MedilinkColors.accent),
+            SizedBox(width: 10),
+            Text('Inscription réussie'),
+          ]),
+          content: const Text(
+            'Votre dossier médical a été créé.\nVous recevrez un email de confirmation.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => context.push('/login'),
+              child: const Text('OK', style: TextStyle(color: MedilinkColors.primary)),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      // NEW: never silently swallow — surface a clear, actionable error.
+      if (!mounted) return;
+      await _showSubmitErrorDialog(error);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
   // ─── BUILD ───────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: MedilinkColors.surface,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildStepIndicator(),
-            Expanded(
-              child: SlideTransition(
-                position: _slideAnimation,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-                  child: _buildCurrentStep(),
+    return PopScope(
+      canPop: !_hasEnteredData && !_isSubmitting,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldPop = await _confirmDiscard();
+        if (shouldPop && mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: GestureDetector(
+        // NEW: dismiss keyboard when tapping outside a field
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: MedilinkColors.surface,
+          body: SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                _buildStepIndicator(),
+                Expanded(
+                  child: SlideTransition(
+                    position: _slideAnimation,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                      child: _buildCurrentStep(),
+                    ),
+                  ),
                 ),
-              ),
+                _buildBottomNav(),
+              ],
             ),
-            _buildBottomNav(),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  // ─── Header ──────────────────────────────────────────────────────────────
+  //// ─── Header ──────────────────────────────────────────────────────────────
 
   Widget _buildHeader() {
     const titles    = ['Compte', 'Identité', 'Santé', 'Contact d\'urgence'];
@@ -274,7 +407,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [MedilinkColors.primary, MedilinkColors.primaryLight],
+          colors: [AppColors.headerBlueDark, AppColors.headerBlueLight],
           begin: Alignment.topLeft, end: Alignment.bottomRight,
         ),
       ),
@@ -283,7 +416,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
           Container(
             width: 40, height: 40,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.medical_services_rounded,
@@ -298,7 +431,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
           const Spacer(),
           Text('Étape ${_currentStep + 1}/$_totalSteps',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.75),
+                color: Colors.white.withValues(alpha: 0.75),
                 fontSize: 12, fontWeight: FontWeight.w600,
               )),
         ]),
@@ -310,12 +443,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
             )),
         const SizedBox(height: 4),
         Text(subtitles[_currentStep],
-            style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13)),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
       ]),
     );
   }
-
-  // ─── Step indicator ───────────────────────────────────────────────────────
 
   Widget _buildStepIndicator() {
     const icons = [
@@ -337,19 +468,19 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                   width: 36, height: 36,
                   decoration: BoxDecoration(
                     color: isDone
-                        ? MedilinkColors.stepDone
+                        ? AppColors.stepDone
                         : isActive
-                        ? MedilinkColors.stepActive
-                        : MedilinkColors.stepIdle,
+                        ? AppColors.primary
+                        : AppColors.inactiveStep,
                     shape: BoxShape.circle,
                     boxShadow: isActive ? [BoxShadow(
-                      color: MedilinkColors.primary.withOpacity(0.35),
+                      color: AppColors.primary.withValues(alpha: 0.35),
                       blurRadius: 8, offset: const Offset(0, 3),
                     )] : null,
                   ),
                   child: Icon(
                     isDone ? Icons.check_rounded : icons[i],
-                    color: (isDone || isActive) ? Colors.white : MedilinkColors.textSub,
+                    color: (isDone || isActive) ? Colors.white : AppColors.textGrey,
                     size: 18,
                   ),
                 ),
@@ -359,8 +490,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                   duration: const Duration(milliseconds: 300),
                   height: 2,
                   color: i < _currentStep
-                      ? MedilinkColors.stepDone
-                      : MedilinkColors.stepIdle,
+                      ? AppColors.stepDone
+                      : AppColors.inactiveStep,
                 )),
             ]),
           );
@@ -394,7 +525,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
           margin: const EdgeInsets.all(20),
           child: Card(
             elevation: 8,
-            shadowColor: Colors.blue.withOpacity(0.3),
+            shadowColor: Colors.blue.withValues(alpha: 0.3),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             child: Container(
               decoration: BoxDecoration(
@@ -411,7 +542,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                   decoration: BoxDecoration(
                     color: Colors.white, shape: BoxShape.circle,
                     boxShadow: [BoxShadow(
-                      color: Colors.blue.withOpacity(0.15),
+                      color: Colors.blue.withValues(alpha: 0.15),
                       blurRadius: 20, spreadRadius: 5,
                     )],
                   ),
@@ -486,7 +617,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                   child: child!,
                 ),
               );
-              if (picked != null) setState(() => _dateOfBirth = picked);
+              if (picked != null && mounted) setState(() => _dateOfBirth = picked);
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -520,12 +651,25 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
               ]),
             ),
           ),
+          // NEW: inline hint so the user knows why the field matters and
+          // that a red border below means a missing required value.
+          if (_dateOfBirth == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Requis pour valider votre profil médical.',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: MedilinkColors.textSub.withValues(alpha: 0.8),
+                ),
+              ),
+            ),
         ]),
       ]),
     );
   }
 
-  // ── Step 3 : Santé — REWRITTEN ────────────────────────────────────────────
+  // ── Step 3 : Santé ────────────────────────────────────────────────────────
 
   Widget _buildStep3() {
     return Form(
@@ -547,7 +691,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? MedilinkColors.error.withOpacity(0.12)
+                        ? MedilinkColors.error.withValues(alpha: 0.12)
                         : MedilinkColors.surface,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
@@ -569,7 +713,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
             padding: const EdgeInsets.only(top: 6),
             child: Text('Optionnel',
                 style: TextStyle(
-                  color: MedilinkColors.textSub.withOpacity(0.7), fontSize: 11,
+                  color: MedilinkColors.textSub.withValues(alpha: 0.7), fontSize: 11,
                 )),
           ),
         ]),
@@ -587,9 +731,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
               validator: (v) {
-                if (v == null || v.isEmpty) return null;
-                final h = double.tryParse(v);
-                if (h == null || h < 50 || h > 250) return 'Valeur invalide';
+                if (v == null || v.trim().isEmpty) return null;
+                final h = double.tryParse(v.trim());
+                if (h == null) return 'Nombre invalide';
+                if (h < 50 || h > 250) return 'Entre 50 et 250 cm';
                 return null;
               },
               optional: true,
@@ -602,9 +747,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
               validator: (v) {
-                if (v == null || v.isEmpty) return null;
-                final w = double.tryParse(v);
-                if (w == null || w < 1 || w > 500) return 'Valeur invalide';
+                if (v == null || v.trim().isEmpty) return null;
+                final w = double.tryParse(v.trim());
+                if (w == null) return 'Nombre invalide';
+                if (w < 1 || w > 500) return 'Entre 1 et 500 kg';
                 return null;
               },
               optional: true,
@@ -666,7 +812,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
             controller: _emergencyNameCtrl,
             label: 'Nom du contact', hint: 'Marie Dupont',
             icon: Icons.person_pin_rounded,
-            validator: (v) => v == null || v.trim().isEmpty ? 'Nom requis' : null,
+            validator: (v) {
+              final trimmed = v?.trim() ?? '';
+              if (trimmed.isEmpty) return 'Nom requis';
+              if (trimmed.length < 2) return 'Nom trop court';
+              return null;
+            },
           ),
           const SizedBox(height: 16),
           _inputField(
@@ -676,9 +827,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
             keyboardType: TextInputType.phone,
             inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[+\d\s]'))],
             validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Téléphone requis';
-              final cleaned = v.replaceAll(RegExp(r'\s'), '');
-              if (!RegExp(r'^\+?[\d]{8,15}$').hasMatch(cleaned)) return 'Numéro invalide';
+              final trimmed = v?.trim() ?? '';
+              if (trimmed.isEmpty) return 'Téléphone requis';
+              final cleaned = trimmed.replaceAll(RegExp(r'\s'), '');
+              if (!RegExp(r'^\+?[\d]{8,15}$').hasMatch(cleaned)) {
+                return 'Numéro invalide (8 à 15 chiffres)';
+              }
               return null;
             },
           ),
@@ -701,8 +855,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
     );
   }
 
-  // ─── Bottom nav ───────────────────────────────────────────────────────────
-
   Widget _buildBottomNav() {
     final isLast = _currentStep == _totalSteps - 1;
     return Container(
@@ -710,34 +862,45 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [BoxShadow(
-          color: Colors.black.withOpacity(0.06),
+          color: Colors.black.withValues(alpha: 0.06),
           blurRadius: 12, offset: const Offset(0, -4),
         )],
       ),
       child: Row(children: [
         if (_currentStep > 0)
           OutlinedButton.icon(
-            onPressed: _prevStep,
+            onPressed: _isSubmitting ? null : _prevStep, // NEW: disabled while submitting
             icon: const Icon(Icons.arrow_back_rounded, size: 18),
             label: const Text('Retour'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: MedilinkColors.primary,
-              side: const BorderSide(color: MedilinkColors.primary),
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
         const Spacer(),
         FilledButton.icon(
-          onPressed: isLast ? _submit : _nextStep,
-          icon: Icon(
+          onPressed: _isSubmitting ? null : (isLast ? _submit : _nextStep), // NEW
+          icon: _isSubmitting
+              ? const SizedBox(
+            width: 16, height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2, color: Colors.white,
+            ),
+          )
+              : Icon(
             isLast ? Icons.check_rounded : Icons.arrow_forward_rounded,
             size: 18,
           ),
-          label: Text(isLast ? 'Créer mon compte' : 'Suivant'),
+          label: Text(_isSubmitting
+              ? 'Création en cours…'
+              : (isLast ? 'Créer mon compte' : 'Suivant')),
           style: FilledButton.styleFrom(
-            backgroundColor: isLast ? MedilinkColors.accent : MedilinkColors.primary,
+            backgroundColor: isLast ? AppColors.accent : AppColors.primary,
             foregroundColor: Colors.white,
+            disabledBackgroundColor: (isLast ? AppColors.accent : AppColors.primary)
+                .withValues(alpha: 0.6),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             elevation: 2,
@@ -756,7 +919,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
       color: MedilinkColors.card,
       borderRadius: BorderRadius.circular(16),
       boxShadow: [BoxShadow(
-        color: Colors.black.withOpacity(0.05),
+        color: Colors.black.withValues(alpha: 0.05),
         blurRadius: 10, offset: const Offset(0, 4),
       )],
     ),
@@ -789,6 +952,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
     inputFormatters: inputFormatters,
     maxLines: maxLines,
     validator: validator,
+    autovalidateMode: AutovalidateMode.onUserInteraction, // NEW: live feedback
     style: const TextStyle(color: MedilinkColors.textMain, fontSize: 15),
     decoration: InputDecoration(
       labelText: optional ? '$label (optionnel)' : label,
@@ -798,7 +962,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
       filled: true, fillColor: MedilinkColors.surface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       labelStyle: const TextStyle(color: MedilinkColors.textSub, fontSize: 13),
-      hintStyle: TextStyle(color: MedilinkColors.textSub.withOpacity(0.6), fontSize: 13),
+      hintStyle: TextStyle(color: MedilinkColors.textSub.withValues(alpha: 0.6), fontSize: 13),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: MedilinkColors.stepIdle, width: 1.5)),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
@@ -821,7 +985,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? MedilinkColors.primary.withOpacity(0.1)
+              ? MedilinkColors.primary.withValues(alpha: 0.1)
               : MedilinkColors.surface,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
@@ -848,9 +1012,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
   Widget _infoTip(IconData icon, String text) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: MedilinkColors.primaryLight.withOpacity(0.08),
+      color: MedilinkColors.primaryLight.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: MedilinkColors.primary.withOpacity(0.2)),
+      border: Border.all(color: MedilinkColors.primary.withValues(alpha: 0.2)),
     ),
     child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Icon(icon, size: 18, color: MedilinkColors.primary),
@@ -899,6 +1063,10 @@ class _TagInputCardState extends State<_TagInputCard> {
   bool _showSuggestions = false;
   String _query = '';
 
+  // NEW: max tags to avoid an unbounded, unusable list of entries
+  static const int _maxTags = 20;
+  static const int _maxTagLength = 60;
+
   List<String> get _filteredSuggestions {
     final q = _query.toLowerCase();
     return widget.suggestions
@@ -911,17 +1079,47 @@ class _TagInputCardState extends State<_TagInputCard> {
   void _addTag(String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return;
+
+    // NEW: basic guardrails with visible feedback instead of failing silently
+    if (widget.tags.length >= _maxTags) {
+      _showFieldError('Maximum $_maxTags éléments atteint.');
+      return;
+    }
+    if (trimmed.length > _maxTagLength) {
+      _showFieldError('Ce texte est trop long (max $_maxTagLength caractères).');
+      return;
+    }
+    if (widget.tags.any((t) => t.toLowerCase() == trimmed.toLowerCase())) {
+      _showFieldError('« $trimmed » est déjà dans la liste.');
+      widget.controller.clear();
+      setState(() { _query = ''; _showSuggestions = false; });
+      return;
+    }
+
     widget.onAdd(trimmed);
     widget.controller.clear();
     setState(() { _query = ''; _showSuggestions = false; });
+  }
+
+  void _showFieldError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(msg),
+        backgroundColor: widget.tagColor,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
   }
 
   @override
   Widget build(BuildContext context) {
     // Card border colour: danger uses allergyTag tint, else primary tint
     final borderColor = widget.isDanger
-        ? MedilinkColors.allergyTag.withOpacity(0.25)
-        : MedilinkColors.primary.withOpacity(0.15);
+        ? MedilinkColors.allergyTag.withValues(alpha: 0.25)
+        : MedilinkColors.primary.withValues(alpha: 0.15);
     final headerIconColor = widget.isDanger
         ? MedilinkColors.allergyTag
         : MedilinkColors.primary;
@@ -933,7 +1131,7 @@ class _TagInputCardState extends State<_TagInputCard> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor, width: 1.5),
         boxShadow: [BoxShadow(
-          color: Colors.black.withOpacity(0.05),
+          color: Colors.black.withValues(alpha: 0.05),
           blurRadius: 10, offset: const Offset(0, 4),
         )],
       ),
@@ -964,7 +1162,7 @@ class _TagInputCardState extends State<_TagInputCard> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: MedilinkColors.accent.withOpacity(0.12),
+                color: MedilinkColors.accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Text('Optionnel', style: TextStyle(
@@ -989,11 +1187,11 @@ class _TagInputCardState extends State<_TagInputCard> {
             ),
             child: Column(children: [
               Icon(widget.icon,
-                  size: 22, color: MedilinkColors.textSub.withOpacity(0.4)),
+                  size: 22, color: MedilinkColors.textSub.withValues(alpha: 0.4)),
               const SizedBox(height: 6),
               Text(widget.emptyHint, style: TextStyle(
                 fontSize: 12.5,
-                color: MedilinkColors.textSub.withOpacity(0.6),
+                color: MedilinkColors.textSub.withValues(alpha: 0.6),
               )),
             ]),
           )
@@ -1017,10 +1215,11 @@ class _TagInputCardState extends State<_TagInputCard> {
                 controller: widget.controller,
                 style: const TextStyle(
                     color: MedilinkColors.textMain, fontSize: 14),
+                textInputAction: TextInputAction.done, // NEW: clearer keyboard action
                 decoration: InputDecoration(
                   hintText: widget.placeholder,
                   hintStyle: TextStyle(
-                      color: MedilinkColors.textSub.withOpacity(0.6),
+                      color: MedilinkColors.textSub.withValues(alpha: 0.6),
                       fontSize: 13),
                   prefixIcon: Icon(Icons.add_circle_outline,
                       size: 18, color: MedilinkColors.primary),
@@ -1082,7 +1281,7 @@ class _TagInputCardState extends State<_TagInputCard> {
                 Text('Suggestions rapides',
                     style: TextStyle(
                       fontSize: 11,
-                      color: MedilinkColors.textSub.withOpacity(0.7),
+                      color: MedilinkColors.textSub.withValues(alpha: 0.7),
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.3,
                     )),
@@ -1099,7 +1298,7 @@ class _TagInputCardState extends State<_TagInputCard> {
                             color: widget.tagBg,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                                color: widget.tagColor.withOpacity(0.3)),
+                                color: widget.tagColor.withValues(alpha: 0.3)),
                           ),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
                             Icon(Icons.add, size: 12, color: widget.tagColor),
@@ -1135,7 +1334,8 @@ class _TagInputCardState extends State<_TagInputCard> {
               Icon(Icons.check_circle_outline, size: 14, color: widget.tagColor),
               const SizedBox(width: 6),
               Text(
-                '${widget.tags.length} élément${widget.tags.length > 1 ? 's' : ''} renseigné${widget.tags.length > 1 ? 's' : ''}',
+                '${widget.tags.length} élément${widget.tags.length > 1 ? 's' : ''} renseigné${widget.tags.length > 1 ? 's' : ''}'
+                    '${widget.tags.length >= _maxTags ? ' (maximum atteint)' : ''}',
                 style: TextStyle(
                   fontSize: 12, color: widget.tagColor, fontWeight: FontWeight.w600,
                 ),
@@ -1168,7 +1368,7 @@ class _MedicalTag extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Text(label, style: TextStyle(
@@ -1180,7 +1380,7 @@ class _MedicalTag extends StatelessWidget {
           child: Container(
             width: 18, height: 18,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(Icons.close, size: 11, color: color),

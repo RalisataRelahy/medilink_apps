@@ -1,26 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:medilink/features/auth/views/providers/auth_provider.dart';
 import 'package:medilink/features/consultations/data/models/consultation_details_model.dart';
 import 'package:medilink/features/consultations/data/services/consultations_services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:medilink/shared/enums/user_role.dart';
 
 final consultationServiceProvider = Provider<ConsultationsServices>((ref) {
   return ConsultationsServices();
 });
 
-final pastConsultationsProviderFromPatient = FutureProvider<List<ConsultationDetailsModel>>((ref) {
+final consultationsProvider = FutureProvider<List<ConsultationDetailsModel>>((ref) async {
   final service = ref.watch(consultationServiceProvider);
-  final userId = Supabase.instance.client.auth.currentUser?.id;
+  final authState = ref.watch(authProvider);
+  final user = authState.user;
   
-  if (userId == null) return [];
+  if (user == null) return [];
   
-  return service.fetchPastConsultationsFromPatient(userId);
-});
-
-final pastConsultationsProviderFromDoctor = FutureProvider<List<ConsultationDetailsModel>>((ref) {
-  final service = ref.watch(consultationServiceProvider);
-  final userId = Supabase.instance.client.auth.currentUser?.id;
-
-  if (userId == null) return [];
-
-  return service.fetchPastConsultationsFromDoctor(userId);
+  if (user.role == UserRole.doctor) {
+    return service.fetchPastConsultationsFromDoctor(user.id);
+  } else {
+    return service.fetchPastConsultationsFromPatient(user.id);
+  }
 });

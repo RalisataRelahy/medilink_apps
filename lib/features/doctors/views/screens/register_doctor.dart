@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:medilink/features/auth/views/providers/auth_provider.dart';
 
 // ⚠️ Adaptez ces imports au chemin réel de votre projet :
+import '../../../../core/theme/app_colors.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../data/models/doctor_model.dart';
 import '../../data/models/doctor_details_model.dart';
@@ -16,14 +17,14 @@ import '../../../../shared/enums/account_status.dart';
 /// COULEURS & STYLE "MediLink"
 /// ============================================================
 class MedilinkColors {
-  static const Color primary = Color(0xFF0F7A82); // teal médical (header)
-  static const Color primaryDark = Color(0xFF0B5C63);
-  static const Color background = Color(0xFFF4F7F8);
-  static const Color cardBg = Color(0xFFEFF5F6);
-  static const Color textDark = Color(0xFF17313B);
-  static const Color textGrey = Color(0xFF6B7B80);
-  static const Color inactiveStep = Color(0xFFD7E3E5);
-  static const Color accent = Color(0xFF00C9A7);
+  static const Color primary = AppColors.primary;
+  static const Color primaryDark = AppColors.headerBlueDark;
+  static const Color background = AppColors.background;
+  static const Color cardBg = AppColors.cardBg;
+  static const Color textDark = AppColors.textDark;
+  static const Color textGrey = AppColors.textGrey;
+  static const Color inactiveStep = AppColors.inactiveStep;
+  static const Color accent = AppColors.primaryLight;
 }
 
 const _specialitySuggestions = [
@@ -393,7 +394,7 @@ class _RegisterDoctorScreenState extends ConsumerState<RegisterDoctorScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.local_hospital, color: Colors.white),
@@ -413,7 +414,7 @@ class _RegisterDoctorScreenState extends ConsumerState<RegisterDoctorScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -556,7 +557,7 @@ class _RegisterDoctorScreenState extends ConsumerState<RegisterDoctorScreen> {
               tags: _diplomas,
               suggestions: _diplomaSuggestions,
               tagColor: MedilinkColors.accent,
-              tagBg: MedilinkColors.accent.withOpacity(0.1),
+              tagBg: MedilinkColors.accent.withValues(alpha: 0.1),
               controller: _diplomaInputCtrl,
               onAdd: (v) { if (!_diplomas.contains(v)) setState(() => _diplomas.add(v)); },
               onRemove: (v) => setState(() => _diplomas.remove(v)),
@@ -951,8 +952,7 @@ class _TagInputCard extends StatefulWidget {
     required this.controller,
     required this.onAdd,
     required this.onRemove,
-    this.isOptional = false,
-  });
+  }) : isOptional = false;
 
   @override
   State<_TagInputCard> createState() => _TagInputCardState();
@@ -980,7 +980,7 @@ class _TagInputCardState extends State<_TagInputCard> {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = widget.tagColor.withOpacity(0.15);
+    final borderColor = widget.tagColor.withValues(alpha: 0.15);
     final headerIconColor = widget.tagColor;
 
     return Container(
@@ -990,7 +990,7 @@ class _TagInputCardState extends State<_TagInputCard> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor, width: 1.5),
         boxShadow: [BoxShadow(
-          color: Colors.black.withOpacity(0.05),
+          color: Colors.black.withValues(alpha: 0.05),
           blurRadius: 10, offset: const Offset(0, 4),
         )],
       ),
@@ -1020,7 +1020,7 @@ class _TagInputCardState extends State<_TagInputCard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: MedilinkColors.accent.withOpacity(0.12),
+                  color: MedilinkColors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text('Optionnel', style: TextStyle(
@@ -1043,11 +1043,11 @@ class _TagInputCardState extends State<_TagInputCard> {
             ),
             child: Column(children: [
               Icon(widget.icon,
-                  size: 22, color: MedilinkColors.textGrey.withOpacity(0.4)),
+                  size: 22, color: MedilinkColors.textGrey.withValues(alpha: 0.4)),
               const SizedBox(height: 6),
               Text(widget.emptyHint, style: TextStyle(
                 fontSize: 12.5,
-                color: MedilinkColors.textGrey.withOpacity(0.6),
+                color: MedilinkColors.textGrey.withValues(alpha: 0.6),
               )),
             ]),
           )
@@ -1072,7 +1072,7 @@ class _TagInputCardState extends State<_TagInputCard> {
                 decoration: InputDecoration(
                   hintText: widget.placeholder,
                   hintStyle: TextStyle(
-                      color: MedilinkColors.textGrey.withOpacity(0.6),
+                      color: MedilinkColors.textGrey.withValues(alpha: 0.6),
                       fontSize: 13),
                   prefixIcon: const Icon(Icons.add_circle_outline,
                       size: 18, color: MedilinkColors.primary),
@@ -1130,7 +1130,7 @@ class _TagInputCardState extends State<_TagInputCard> {
                 Text('Suggestions rapides',
                     style: TextStyle(
                       fontSize: 11,
-                      color: MedilinkColors.textGrey.withOpacity(0.7),
+                      color: MedilinkColors.textGrey.withValues(alpha: 0.7),
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.3,
                     )),
@@ -1147,7 +1147,7 @@ class _TagInputCardState extends State<_TagInputCard> {
                             color: widget.tagBg,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                                color: widget.tagColor.withOpacity(0.3)),
+                                color: widget.tagColor.withValues(alpha: 0.3)),
                           ),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
                             Icon(Icons.add, size: 12, color: widget.tagColor),
@@ -1190,7 +1190,7 @@ class _MedicalTag extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Text(label, style: TextStyle(
@@ -1202,7 +1202,7 @@ class _MedicalTag extends StatelessWidget {
           child: Container(
             width: 18, height: 18,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(Icons.close, size: 11, color: color),

@@ -9,6 +9,7 @@ class ConsultationsServices {
         .from('consultations')
         .select('''
           *,
+          profiles:doctor_id(*),
           prescriptions(
             *,
             prescription_medicine(
@@ -31,6 +32,7 @@ class ConsultationsServices {
         .from('consultations')
         .select('''
           *,
+          profiles:patient_id(*),
           prescriptions(
             *,
             prescription_medicine(

@@ -33,7 +33,7 @@ class PatientNotifier extends StateNotifier<AsyncValue<PatientDetailsModel?>> {
     if (_userId == null) return;
     state = const AsyncValue.loading();
     try {
-      final details = await _service.getPatientDetails(_userId!);
+      final details = await _service.getPatientDetails(_userId);
       state = AsyncValue.data(details);
     } catch (e, st) {
       state = AsyncValue.error(e, st);

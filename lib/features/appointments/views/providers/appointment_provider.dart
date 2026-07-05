@@ -1,18 +1,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:medilink/features/appointments/data/services/appointments_services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:medilink/features/auth/views/providers/auth_provider.dart';
+import 'package:medilink/shared/enums/user_role.dart';
 
 import '../../data/models/appointment_models.dart';
 
 final appointmentServiceProvider = Provider((ref) => AppointmentsServices());
 
-// Le FutureProvider que le tableau de bord du docteur va écouter
-final doctorAppointmentsProvider = FutureProvider<List<AppointmentModel>>((ref) async {
+// Provider dynamique pour les rendez-vous (dépend du rôle de l'utilisateur)
+final appointmentsProvider = FutureProvider<List<AppointmentModel>>((ref) async {
   final service = ref.watch(appointmentServiceProvider);
-  final doctorId = Supabase.instance.client.auth.currentUser?.id;
+  final authState = ref.watch(authProvider);
+  final user = authState.user;
 
-  if (doctorId == null) return [];
+  if (user == null) return [];
 
-  final rawData = await service.fetchAllAppointmentsFromDoctor(doctorId);
-  return rawData.map((json) => AppointmentModel.fromJson(json as Map<String,dynamic>)).toList();
+  final List<Map<String, dynamic>> rawData;
+
+  if (user.role == UserRole.doctor) {
+    rawData = await service.fetchAllAppointmentsFromDoctor(user.id);
+  } else {
+    rawData = await service.fetchAllAppointmentsFromPatient(user.id);
+  }
+
+  return rawData.map((json) => AppointmentModel.fromJson(json)).toList();
 });

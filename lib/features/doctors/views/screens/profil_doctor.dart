@@ -1,18 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:medilink/core/theme/app_colors.dart';
 import 'package:medilink/features/auth/views/providers/auth_provider.dart';
 import '../providers/doctor_provider.dart';
 import '../../data/models/doctor_details_model.dart';
-
-class MedilinkColors {
-  static const Color primary = Color(0xFF0F7A82);
-  static const Color primaryDark = Color(0xFF0B5C63);
-  static const Color background = Color(0xFFF4F7F8);
-  static const Color cardBg = Color(0xFFFFFFFF);
-  static const Color textDark = Color(0xFF17313B);
-  static const Color textGrey = Color(0xFF6B7B80);
-  static const Color accent = Color(0xFF00C9A7);
-}
 
 class DoctorProfileScreen extends ConsumerWidget {
   const DoctorProfileScreen({super.key});
@@ -22,7 +13,7 @@ class DoctorProfileScreen extends ConsumerWidget {
     final detailsAsync = ref.watch(doctorDetailsProvider);
 
     return Scaffold(
-      backgroundColor: MedilinkColors.background,
+      backgroundColor: AppColors.background,
       body: detailsAsync.when(
         data: (details) {
           if (details == null) {
@@ -45,11 +36,11 @@ class DoctorProfileScreen extends ConsumerWidget {
                       const SizedBox(height: 24),
                       _buildSectionTitle("Spécialités"),
                       const SizedBox(height: 12),
-                      _buildTagCloud(details.specialities.map((e) => e.name).toList(), MedilinkColors.primary),
+                      _buildTagCloud(details.specialities.map((e) => e.name).toList(), AppColors.primary),
                       const SizedBox(height: 24),
                       _buildSectionTitle("Diplômes & Certifications"),
                       const SizedBox(height: 12),
-                      _buildTagCloud(details.diplomas.map((e) => e.name).toList(), MedilinkColors.accent),
+                      _buildTagCloud(details.diplomas.map((e) => e.name).toList(), AppColors.headerBlueLight),
                       const SizedBox(height: 24),
                       _buildSectionTitle("Langues parlées"),
                       const SizedBox(height: 12),
@@ -68,7 +59,7 @@ class DoctorProfileScreen extends ConsumerWidget {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator(color: MedilinkColors.primary)),
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
         error: (err, stack) => Center(child: Text("Erreur: $err")),
       ),
     );
@@ -78,7 +69,7 @@ class DoctorProfileScreen extends ConsumerWidget {
     return SliverAppBar(
       expandedHeight: 280,
       pinned: true,
-      backgroundColor: MedilinkColors.primary,
+      backgroundColor: AppColors.primary,
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           fit: StackFit.expand,
@@ -88,7 +79,7 @@ class DoctorProfileScreen extends ConsumerWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [MedilinkColors.primary, MedilinkColors.primaryDark],
+                  colors: [AppColors.headerBlueDark, AppColors.headerBlueLight],
                 ),
               ),
             ),
@@ -101,7 +92,7 @@ class DoctorProfileScreen extends ConsumerWidget {
                   backgroundColor: Colors.white,
                   child: details.profile.avatarUrl != null
                       ? ClipOval(child: Image.network(details.profile.avatarUrl!, fit: BoxFit.cover, width: 95, height: 95))
-                      : const Icon(Icons.person, size: 60, color: MedilinkColors.primary),
+                      : const Icon(Icons.person, size: 60, color: AppColors.primary),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -110,13 +101,13 @@ class DoctorProfileScreen extends ConsumerWidget {
                 ),
                 Text(
                   details.specialities.isNotEmpty ? details.specialities.first.name : "Médecin",
-                  style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 16),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 16),
                 ),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -150,14 +141,14 @@ class DoctorProfileScreen extends ConsumerWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
         ),
         child: Column(
           children: [
-            Icon(icon, color: MedilinkColors.primary, size: 24),
+            Icon(icon, color: AppColors.primary, size: 24),
             const SizedBox(height: 8),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: MedilinkColors.textDark)),
-            Text(label, style: const TextStyle(fontSize: 12, color: MedilinkColors.textGrey)),
+            Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textDark)),
+            Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
           ],
         ),
       ),
@@ -167,7 +158,7 @@ class DoctorProfileScreen extends ConsumerWidget {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: MedilinkColors.textDark),
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark),
     );
   }
 
@@ -182,22 +173,22 @@ class DoctorProfileScreen extends ConsumerWidget {
       ),
       child: Text(
         bio,
-        style: const TextStyle(color: MedilinkColors.textGrey, height: 1.5, fontSize: 14.5),
+        style: const TextStyle(color: AppColors.textGrey, height: 1.5, fontSize: 14.5),
       ),
     );
   }
 
   Widget _buildTagCloud(List<String> tags, Color color) {
-    if (tags.isEmpty) return const Text("Non renseigné", style: TextStyle(fontStyle: FontStyle.italic, color: MedilinkColors.textGrey));
+    if (tags.isEmpty) return const Text("Non renseigné", style: TextStyle(fontStyle: FontStyle.italic, color: AppColors.textGrey));
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: tags.map((tag) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Text(tag, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13)),
       )).toList(),
@@ -227,9 +218,9 @@ class DoctorProfileScreen extends ConsumerWidget {
   Widget _contactItem(IconData icon, String text) {
     return Row(
       children: [
-        Icon(icon, color: MedilinkColors.primary, size: 20),
+        Icon(icon, color: AppColors.primary, size: 20),
         const SizedBox(width: 12),
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 14.5, color: MedilinkColors.textDark))),
+        Expanded(child: Text(text, style: const TextStyle(fontSize: 14.5, color: AppColors.textDark))),
       ],
     );
   }

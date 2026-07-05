@@ -1,3 +1,4 @@
+import 'package:medilink/features/auth/data/models/user_model.dart';
 import 'consultations_model.dart';
 import 'prescription_model.dart';
 import 'prescriptions_medicine_models.dart';
@@ -10,17 +11,20 @@ class ConsultationDetailsModel {
   final PrescriptionModel? prescription;
   final List<MedicineWithDetails> medicines;
   final List<ExamWithDetails> exams;
+  final UserModel? profile;
 
   const ConsultationDetailsModel({
     required this.consultation,
     this.prescription,
     this.medicines = const [],
     this.exams = const [],
+    this.profile,
   });
 
   factory ConsultationDetailsModel.fromJson(Map<String, dynamic> json) {
     // On récupère la consultation de base
     final consultation = ConsultationsModel.fromJson(json);
+    final profile = json['profiles'] != null ? UserModel.fromJson(json['profiles']) : null;
 
     // On cherche la prescription (souvent une liste d'une seule prescription dans le retour Supabase)
     final prescriptionsList = json['prescriptions'] as List?;
@@ -64,6 +68,7 @@ class ConsultationDetailsModel {
       prescription: prescription,
       medicines: medicines,
       exams: exams,
+      profile: profile,
     );
   }
 }
