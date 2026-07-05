@@ -6,7 +6,10 @@ import 'package:medilink/core/theme/app_colors.dart';
 import 'package:medilink/features/appointments/views/providers/appointment_provider.dart';
 import 'package:medilink/features/auth/views/providers/auth_provider.dart';
 import 'package:medilink/shared/enums/status.dart';
+import 'package:medilink/features/doctors/data/models/doctor_details_model.dart';
+import 'package:medilink/features/doctors/views/providers/doctor_provider.dart';
 import '../providers/patient_provider.dart';
+
 
 class PatientDashboardScreen extends ConsumerStatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -52,9 +55,10 @@ class _PatientDashboardScreenState extends ConsumerState<PatientDashboardScreen>
                   const SizedBox(height: 16),
                   _buildSpecialtiesGrid(),
                   const SizedBox(height: 32),
-                  _buildSectionHeader("Médecins recommandés", () => context.push('/doctors')),
+                  _buildSectionHeader("Médecins recommandés", () =>
+                      context.push('/doctorslist')),
                   const SizedBox(height: 16),
-                  _buildRecommendedDoctors(),
+                  _buildRecommendedDoctors(ref),
                   const SizedBox(height: 40),
                 ],
               ),
@@ -149,7 +153,7 @@ class _PatientDashboardScreenState extends ConsumerState<PatientDashboardScreen>
           icon: Icons.calendar_today_rounded,
           label: "Prendre RDV",
           color: const Color(0xFF6366F1),
-          onTap: () => context.push('/doctors'),
+          onTap: () => context.push('/doctorslist'),
         ),
         SizedBox(width: 30),
         _quickActionItem(
@@ -192,12 +196,23 @@ class _PatientDashboardScreenState extends ConsumerState<PatientDashboardScreen>
   }
 
   Widget _buildSectionHeader(String title, VoidCallback onSeeAll) {
+    double screenWidth = MediaQuery
+        .of(context)
+        .size
+        .width;
+    double screenHeight = MediaQuery
+        .of(context)
+        .size
+        .height;
+    bool isSmallScreen = screenWidth < 400;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark),
+          style: TextStyle(fontSize: isSmallScreen ? 16 : 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textDark),
         ),
         TextButton(
           onPressed: onSeeAll,
@@ -369,67 +384,113 @@ class _PatientDashboardScreenState extends ConsumerState<PatientDashboardScreen>
     );
   }
 
-  Widget _buildRecommendedDoctors() {
-    return Column(
-      children: List.generate(2, (index) => _doctorCard()),
+  Widget _buildRecommendedDoctors(WidgetRef ref) {
+    final doctorsAsync = ref.watch(allDoctorsProvider);
+
+    return doctorsAsync.when(
+      data: (doctors) {
+        if (doctors.isEmpty) {
+          return const Center(child: Text("Aucun médecin disponible"));
+        }
+        // Take top 3 for dashboard
+        final recommended = doctors.take(3).toList();
+        return Column(
+          children: recommended.map((d) => _doctorCard(d)).toList(),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, _) => const SizedBox.shrink(),
     );
   }
 
-  Widget _doctorCard() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(12),
+  Widget _doctorCard(DoctorDetailsModel doctor) {
+    final profile = doctor.profile;
+    final spec = doctor.specialities.isNotEmpty
+        ? doctor.specialities.first.name
+        : 'Médecin';
+
+    return GestureDetector(
+      onTap: () => context.push('/doctors/${profile.id}'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            child: const Icon(Icons.person, color: AppColors.textLight, size: 40),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Dr. Jean Marc",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textDark),
+          ],
+        ),
+        child: Row(
+          children: [
+            Hero(
+              tag: 'doctor_avatar_${profile.id}',
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  image: profile.avatarUrl != null
+                      ? DecorationImage(image: NetworkImage(profile.avatarUrl!),
+                      fit: BoxFit.cover)
+                      : null,
                 ),
-                const Text(
-                  "Dentiste • 8 ans exp.",
-                  style: TextStyle(color: AppColors.textGrey, fontSize: 13),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
-                    const SizedBox(width: 4),
-                    const Text("4.8", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    const SizedBox(width: 12),
-                    Icon(Icons.location_on_rounded, color: Colors.red.withOpacity(0.6), size: 16),
-                    const SizedBox(width: 4),
-                    const Text("2.4 km", style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
-                  ],
-                ),
-              ],
+                child: profile.avatarUrl == null
+                    ? const Icon(
+                    Icons.person, color: AppColors.textLight, size: 40)
+                    : null,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Dr. ${profile.fullName}",
+                    style: const TextStyle(fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: AppColors.textDark),
+                  ),
+                  Text(
+                    "$spec • ${doctor.doctor.yearsOfExperience} ans exp.",
+                    style: const TextStyle(
+                        color: AppColors.textGrey, fontSize: 13),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(
+                          Icons.star_rounded, color: Colors.amber, size: 18),
+                      const SizedBox(width: 4),
+                      Text(doctor.doctor.rating.toStringAsFixed(1),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 13)),
+                      const SizedBox(width: 12),
+                      Icon(Icons.location_on_rounded,
+                          color: Colors.red.withOpacity(0.6), size: 16),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          profile.address,
+                          style: const TextStyle(color: AppColors.textGrey,
+                              fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

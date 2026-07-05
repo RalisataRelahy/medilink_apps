@@ -51,6 +51,12 @@ class _DoctorDashboardScreenState extends ConsumerState<DoctorDashboardScreen> {
   }
 
   Widget _buildAppBar(AsyncValue doctorAsync) {
+    final screenWidth = MediaQuery
+        .of(context)
+        .size
+        .width;
+    final isSmallScreen = screenWidth < 400;
+
     return SliverAppBar(
       expandedHeight: 150,
       pinned: true,
@@ -98,7 +104,8 @@ class _DoctorDashboardScreenState extends ConsumerState<DoctorDashboardScreen> {
                   const SizedBox(width: 8),
                   Text(
                     "Vous avez 8 consultations aujourd'hui",
-                    style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13),
+                    style: TextStyle(color: Colors.white.withOpacity(0.9),
+                        fontSize: isSmallScreen ? 10 : 13),
                   ),
                 ],
               ),
@@ -122,8 +129,6 @@ class _DoctorDashboardScreenState extends ConsumerState<DoctorDashboardScreen> {
         _statCard("RDV du jour", "8", Icons.calendar_today_rounded, Colors.blue),
         const SizedBox(width: 16),
         _statCard("Patients", "124", Icons.people_alt_rounded, Colors.orange),
-        const SizedBox(width: 16),
-        _statCard("Messages", "3", Icons.chat_bubble_outline_rounded, Colors.pink),
       ],
     );
   }
@@ -262,7 +267,6 @@ class _DoctorDashboardScreenState extends ConsumerState<DoctorDashboardScreen> {
       children: [
         _actionItem("Ordonnance", Icons.description_rounded, Colors.teal),
         _actionItem("Consultation", Icons.add_box_rounded, Colors.blue),
-        _actionItem("Certificat", Icons.verified_rounded, Colors.purple),
         _actionItem("Planning", Icons.schedule_rounded, Colors.orange),
       ],
     );

@@ -11,3 +11,15 @@ final doctorDetailsProvider = FutureProvider<DoctorDetailsModel?>((ref) async {
   final authService = ref.read(authServiceProvider);
   return authService.getDoctorDetails(userId);
 });
+
+final allDoctorsProvider = FutureProvider<List<DoctorDetailsModel>>((
+    ref) async {
+  final authService = ref.read(authServiceProvider);
+  return authService.getAllDoctors();
+});
+
+final doctorByIdProvider = FutureProvider.family<DoctorDetailsModel?, String>((
+    ref, id) async {
+  final authService = ref.read(authServiceProvider);
+  return authService.getDoctorDetails(id);
+});

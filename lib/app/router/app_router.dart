@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:medilink/features/auth/data/models/user_model.dart';
 import 'package:medilink/features/consultations/views/screens/consultations_screen.dart';
+import 'package:medilink/features/doctors/views/screens/doctor_details.dart';
 import 'package:medilink/features/doctors/views/screens/doctor_dashboard.dart';
 import 'package:medilink/features/doctors/views/screens/profil_doctor.dart';
 import 'package:medilink/features/doctors/views/screens/register_doctor.dart';
+import 'package:medilink/features/patients/views/screens/doctor_list.dart';
 import 'package:medilink/features/patients/views/screens/patient_dashboard.dart';
 import 'package:medilink/features/patients/views/screens/profil_patient.dart';
 import 'package:medilink/features/patients/views/screens/register_screen_patient.dart';
@@ -26,7 +28,7 @@ class AppRoutes {
   static const dashboard = '/dashboard';
   static const patients = '/patients';
   static const patientDetails = '/patients/:id';
-  static const doctors = '/doctors';
+  static const doctorsList = '/doctorslist';
   static const doctorDetails = '/doctors/:id';
   static const appointments = '/appointments';
   static const appointmentDetails = '/appointments/:id';
@@ -35,7 +37,7 @@ class AppRoutes {
   static const profile = '/profile';
 }
 
-// ✅ Un ValueNotifier pour dire au routeur quand se recharger
+// Un ValueNotifier pour dire au routeur quand se recharger
 class RouterRefreshNotifier extends ChangeNotifier {
   RouterRefreshNotifier(Ref ref) {
     ref.listen(authProvider, (_, _) => notifyListeners());
@@ -146,6 +148,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           ),
           GoRoute(
+            path: AppRoutes.doctorsList,
+            builder: (_, __) => const DoctorListScreen(),
+          ),
+          GoRoute(
             path: AppRoutes.doctorDetails,
             builder: (context, state) {
               final id = state.pathParameters['id']!;
@@ -199,6 +205,5 @@ final routerProvider = Provider<GoRouter>((ref) {
 // Placeholders (à déplacer dans des fichiers séparés plus tard)
 class PatientsScreen extends StatelessWidget { const PatientsScreen({super.key}); @override Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Patients'))); }
 class PatientDetailsScreen extends StatelessWidget { final String patientId; const PatientDetailsScreen({super.key, required this.patientId}); @override Widget build(BuildContext context) => Scaffold(body: Center(child: Text('Patient $patientId'))); }
-class DoctorDetailsScreen extends StatelessWidget { final String doctorId; const DoctorDetailsScreen({super.key, required this.doctorId}); @override Widget build(BuildContext context) => Scaffold(body: Center(child: Text('Doctor $doctorId'))); }
 class AppointmentDetailsScreen extends StatelessWidget { final String appointmentId; const AppointmentDetailsScreen({super.key, required this.appointmentId}); @override Widget build(BuildContext context) => Scaffold(body: Center(child: Text('Appointment $appointmentId'))); }
 class ConsultationDetailsScreen extends StatelessWidget { final String consultationId; const ConsultationDetailsScreen({super.key, required this.consultationId}); @override Widget build(BuildContext context) => Scaffold(body: Center(child: Text('Consultation $consultationId'))); }

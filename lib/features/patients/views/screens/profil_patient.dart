@@ -11,14 +11,22 @@ class PatientProfileScreen extends ConsumerWidget {
 
   // ── NEW: confirmation dialog before logging out ───────────────────────────
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final double screenWidth = MediaQuery
+        .of(context)
+        .size
+        .width;
+    bool isSmallScreen = screenWidth < 400;
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(children: [
+        title: Row(children: [
           Icon(Icons.logout_rounded, color: AppColors.error),
           SizedBox(width: 10),
-          Text('Se déconnecter ?'),
+          Text('Se déconnecter ?', style: TextStyle(
+              fontSize: isSmallScreen ? 14 : 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textDark),),
         ]),
         content: const Text(
           'Vous devrez vous reconnecter pour accéder à votre dossier médical.',

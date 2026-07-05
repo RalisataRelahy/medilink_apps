@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:medilink/core/constants/db_constants.dart';
 import 'package:medilink/features/doctors/data/models/doctor_details_model.dart';
 import 'package:medilink/features/doctors/data/models/doctor_model.dart';
@@ -327,6 +328,49 @@ class AuthService {
     } catch (e) {
       debugPrint('Erreur getDoctorDetails: $e');
       return null;
+    }
+  }
+
+  Future<List<DoctorDetailsModel>> getAllDoctors() async {
+    try {
+      final List<dynamic> data = await supabase
+          .from(TableNames.doctors)
+          .select('''
+            *,
+            profiles:profiles!doctors_id_fkey (*),
+            specialities:doctor_specialties!doctor_specialties_doctor_id_fkey (specialties (*)),
+            languages:doctor_languages!doctor_languages_doctor_id_fkey (languages (*)),
+            diplomas:doctor_diplomas!doctor_diplomas_doctor_id_fkey (diplomas (*))
+          ''');
+
+      return data.map((d) {
+        final profile = d['profiles'];
+        final specialities = (d['specialities'] as List)
+            .map((s) => s['specialties'])
+            .where((s) => s != null)
+            .toList();
+        final languages = (d['languages'] as List)
+            .map((l) => l['languages'])
+            .where((l) => l != null)
+            .toList();
+        final diplomas = (d['diplomas'] as List)
+            .map((d) => d['diplomas'])
+            .where((d) => d != null)
+            .toList();
+
+        return DoctorDetailsModel(
+          profile: UserModel.fromJson(profile),
+          doctor: DoctorModel.fromJson(d),
+          specialities: specialities
+              .map((e) => SpecialityModel.fromJson(e))
+              .toList(),
+          languages: languages.map((e) => LanguageModel.fromJson(e)).toList(),
+          diplomas: diplomas.map((e) => DiplomasModel.fromJson(e)).toList(),
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('Erreur getAllDoctors: $e');
+      return [];
     }
   }
 }

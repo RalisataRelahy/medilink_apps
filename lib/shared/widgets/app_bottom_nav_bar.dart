@@ -96,7 +96,7 @@ class AppBottomNav extends StatelessWidget {
             ),
           ),
           child: SizedBox(
-            height: 80, // standard iOS tab bar content height
+            height: 60, // standard iOS tab bar content height
             child: Row(
               children: List.generate(items.length, (i) {
                 return Expanded(
