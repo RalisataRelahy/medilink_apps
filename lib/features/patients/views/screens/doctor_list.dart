@@ -26,16 +26,16 @@ class _DoctorListScreenState extends ConsumerState<DoctorListScreen> {
     if (_query.isEmpty) return doctors;
     final q = _query.toLowerCase();
     return doctors.where((d) {
-      final name = d.profile.firstName.toLowerCase();
-      final lastName = d.profile.lastName.toLowerCase();
-      final address = d.profile.address.toLowerCase();
+      final firstName = d.profile.firstName ?? '';
+      final lastName = d.profile.lastName ?? '';
+      final address = d.profile.address ?? '';
       final specialities = d.specialities
-          .map((s) => s.name.toLowerCase())
+          .map((s) => (s.name ?? '').toLowerCase())
           .join(' ');
 
-      return name.contains(q) ||
-          lastName.contains(q) ||
-          address.contains(q) ||
+      return firstName.toLowerCase().contains(q) ||
+          lastName.toLowerCase().contains(q) ||
+          address.toLowerCase().contains(q) ||
           specialities.contains(q);
     }).toList();
   }
@@ -107,11 +107,20 @@ class _DoctorListScreenState extends ConsumerState<DoctorListScreen> {
         child: TextField(
           controller: _searchCtrl,
           onChanged: (v) => setState(() => _query = v),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: 'Nom, spécialité, ville...',
-            prefixIcon: Icon(Icons.search, color: AppColors.primary),
+            prefixIcon: const Icon(Icons.search, color: AppColors.primary),
             border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            suffixIcon: _query.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, color: AppColors.textGrey),
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      setState(() => _query = '');
+                    },
+                  )
+                : null,
           ),
         ),
       ),

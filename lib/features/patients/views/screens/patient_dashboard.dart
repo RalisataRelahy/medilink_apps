@@ -19,12 +19,97 @@ class PatientDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _PatientDashboardScreenState extends ConsumerState<PatientDashboardScreen> {
-  final TextEditingController _searchCtrl = TextEditingController();
 
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
+  void _navigateToSearch() {
+    context.push('/doctorslist');
+  }
+
+  void showNotificationPopUp({
+    required BuildContext context,
+    required String message,
+    required String title,
+    IconData icon = Icons.info_outline,
+    Color backgroundColor = const Color(0xFF1E1E24),
+  }) {
+    // 1. Trouver l'état de l'overlay actuel
+    final overlayState = Overlay.of(context);
+    late OverlayEntry overlayEntry;
+
+    // 2. Créer le widget de la notification
+    overlayEntry = OverlayEntry(
+      builder: (context) =>
+          Positioned(
+            top: MediaQuery
+                .of(context)
+                .padding
+                .top + 10, // Juste en dessous de la barre de statut
+            left: 16,
+            right: 16,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(icon, color: Colors.white, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            message,
+                            style: const TextStyle(color: Colors.white70,
+                                fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                          Icons.close, color: Colors.white60, size: 18),
+                      onPressed: () =>
+                          overlayEntry
+                              .remove(), // Permet de fermer manuellement
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+    );
+
+    // 3. Insérer dans l'écran
+    overlayState.insert(overlayEntry);
+
+    // 4. Supprimer automatiquement après 3 secondes
+    Future.delayed(const Duration(seconds: 3), () {
+      if (overlayEntry.mounted) {
+        overlayEntry.remove();
+      }
+    });
   }
 
   @override
@@ -56,7 +141,7 @@ class _PatientDashboardScreenState extends ConsumerState<PatientDashboardScreen>
                   _buildSpecialtiesGrid(),
                   const SizedBox(height: 32),
                   _buildSectionHeader("Médecins recommandés", () =>
-                      context.push('/doctorslist')),
+                      context.push('/doctorslist/q=''')),
                   const SizedBox(height: 16),
                   _buildRecommendedDoctors(ref),
                   const SizedBox(height: 40),
@@ -111,7 +196,15 @@ class _PatientDashboardScreenState extends ConsumerState<PatientDashboardScreen>
       ),
       actions: [
         IconButton(
-          onPressed: () {},
+          onPressed: () {
+            showNotificationPopUp(
+              context: context,
+              title: "Rendez-vous validé",
+              message: "Votre demande a été transmise au Dr. Dupont.",
+              icon: Icons.check_circle_outline,
+              backgroundColor: Colors.green.shade800,
+            );
+          },
           icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
         ),
         const SizedBox(width: 8),
@@ -120,26 +213,31 @@ class _PatientDashboardScreenState extends ConsumerState<PatientDashboardScreen>
   }
 
   Widget _buildSearchBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+    return GestureDetector(
+      onTap: () => _navigateToSearch(),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: TextField(
+          decoration: InputDecoration(
+            hintText: "Rechercher un médecin, une spécialité...",
+            hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 14),
+            prefixIcon: const Icon(
+                Icons.search_rounded, color: AppColors.primary),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20, vertical: 16),
           ),
-        ],
-      ),
-      child: TextField(
-        controller: _searchCtrl,
-        decoration: InputDecoration(
-          hintText: "Rechercher un médecin, une spécialité...",
-          hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 14),
-          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          enabled: false,
         ),
       ),
     );

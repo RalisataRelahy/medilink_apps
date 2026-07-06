@@ -117,8 +117,9 @@ Widget buildAppointmentList(List<AppointmentModel> list, UserRole userRole) {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    userRole == UserRole.patient 
-                                        ? "Dr. ${profile?.fullName ?? 'Inconnu'}" 
+                                    userRole == UserRole.patient
+                                        ? "Dr. ${profile?.fullName ??
+                                        'Inconnu'}"
                                         : (profile?.fullName ?? "Patient Inconnu"),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
@@ -140,7 +141,7 @@ Widget buildAppointmentList(List<AppointmentModel> list, UserRole userRole) {
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
-                                          rdv.localization,
+                                          rdv.localization ?? "undefined",
                                           style: const TextStyle(color: AppColors.textGrey, fontSize: 13),
                                           overflow: TextOverflow.ellipsis,
                                         ),

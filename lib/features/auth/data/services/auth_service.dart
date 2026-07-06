@@ -343,31 +343,58 @@ class AuthService {
             diplomas:doctor_diplomas!doctor_diplomas_doctor_id_fkey (diplomas (*))
           ''');
 
-      return data.map((d) {
-        final profile = d['profiles'];
-        final specialities = (d['specialities'] as List)
-            .map((s) => s['specialties'])
-            .where((s) => s != null)
-            .toList();
-        final languages = (d['languages'] as List)
-            .map((l) => l['languages'])
-            .where((l) => l != null)
-            .toList();
-        final diplomas = (d['diplomas'] as List)
-            .map((d) => d['diplomas'])
-            .where((d) => d != null)
-            .toList();
+      final doctors = <DoctorDetailsModel>[];
 
-        return DoctorDetailsModel(
-          profile: UserModel.fromJson(profile),
-          doctor: DoctorModel.fromJson(d),
-          specialities: specialities
-              .map((e) => SpecialityModel.fromJson(e))
-              .toList(),
-          languages: languages.map((e) => LanguageModel.fromJson(e)).toList(),
-          diplomas: diplomas.map((e) => DiplomasModel.fromJson(e)).toList(),
-        );
-      }).toList();
+      for (final d in data) {
+        try {
+          // Extraction sécurisée du profil
+          final profileData = d['profiles'];
+          final profileMap = (profileData is List && profileData.isNotEmpty)
+              ? profileData.first
+              : (profileData is Map<String, dynamic> ? profileData : null);
+
+          if (profileMap == null) continue;
+
+          // Extraction sécurisée des listes
+          List<SpecialityModel> specs = [];
+          if (d['specialities'] != null) {
+            specs = (d['specialities'] as List)
+                .map((s) => s['specialties'])
+                .where((s) => s != null)
+                .map((e) => SpecialityModel.fromJson(e))
+                .toList();
+          }
+
+          List<LanguageModel> langs = [];
+          if (d['languages'] != null) {
+            langs = (d['languages'] as List)
+                .map((l) => l['languages'])
+                .where((l) => l != null)
+                .map((e) => LanguageModel.fromJson(e))
+                .toList();
+          }
+
+          List<DiplomasModel> dipls = [];
+          if (d['diplomas'] != null) {
+            dipls = (d['diplomas'] as List)
+                .map((d) => d['diplomas'])
+                .where((d) => d != null)
+                .map((e) => DiplomasModel.fromJson(e))
+                .toList();
+          }
+
+          doctors.add(DoctorDetailsModel(
+            profile: UserModel.fromJson(profileMap),
+            doctor: DoctorModel.fromJson(d),
+            specialities: specs,
+            languages: langs,
+            diplomas: dipls,
+          ));
+        } catch (e) {
+          debugPrint("Erreur lors du parsing d'un docteur : $e");
+        }
+      }
+      return doctors;
     } catch (e) {
       debugPrint('Erreur getAllDoctors: $e');
       return [];

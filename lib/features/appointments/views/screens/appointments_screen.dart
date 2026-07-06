@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:medilink/core/theme/app_colors.dart';
 import 'package:medilink/shared/enums/user_role.dart';
 import '../../../auth/views/providers/auth_provider.dart';
@@ -161,7 +162,8 @@ class AppointmentsScreen extends ConsumerWidget {
                   // ambiguous blank screen (still scrollable so
                   // pull-to-refresh keeps working when the list is empty).
                       ? _buildEmptyState(
-                    icon: Icons.event_available_outlined,
+                    icon: Icons.add_alarm_rounded,
+                    callback: () => context.push('/addappointment'),
                     title: 'Aucun rendez-vous à venir',
                     subtitle: 'Vos prochains rendez-vous apparaîtront ici.',
                   )
@@ -223,6 +225,7 @@ class AppointmentsScreen extends ConsumerWidget {
   Widget _buildEmptyState({
     required IconData icon,
     required String title,
+    VoidCallback? callback,
     required String subtitle,
   }) {
     return LayoutBuilder(
@@ -242,7 +245,10 @@ class AppointmentsScreen extends ConsumerWidget {
                       color: AppColors.primary.withValues(alpha: 0.08),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(icon, size: 40, color: AppColors.primary),
+                    child: IconButton(onPressed: callback,
+                        icon: Icon(icon),
+                        iconSize: 40,
+                        color: AppColors.primary),
                   ),
                   const SizedBox(height: 16),
                   Text(

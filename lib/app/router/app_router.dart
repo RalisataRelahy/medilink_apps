@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:medilink/features/appointments/views/screens/add_appointment.dart';
 import 'package:medilink/features/auth/data/models/user_model.dart';
 import 'package:medilink/features/consultations/views/screens/consultations_screen.dart';
 import 'package:medilink/features/doctors/views/screens/doctor_details.dart';
@@ -31,6 +32,7 @@ class AppRoutes {
   static const doctorsList = '/doctorslist';
   static const doctorDetails = '/doctors/:id';
   static const appointments = '/appointments';
+  static const addAppointment = '/addappointment';
   static const appointmentDetails = '/appointments/:id';
   static const consultations = '/consultations';
   static const consultationDetails = '/consultations/:id';
@@ -149,7 +151,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: AppRoutes.doctorsList,
-            builder: (_, __) => const DoctorListScreen(),
+              builder: (_, __) {
+                return DoctorListScreen();
+              }
           ),
           GoRoute(
             path: AppRoutes.doctorDetails,
@@ -161,6 +165,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.appointments,
             builder: (_, _) => const AppointmentsScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.addAppointment,
+            builder: (_, _) => const AddAppointment(),
           ),
           GoRoute(
             path: AppRoutes.dossierMedicale,
